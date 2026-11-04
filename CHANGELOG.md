@@ -4,7 +4,7 @@ All notable changes to this workstation toolkit are documented here.
 
 ## Unreleased
 
-## 2.3.0 — 2026-10-26
+## 2.3.0 — 2026-11-04
 
 ### Added
 
