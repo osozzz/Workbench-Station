@@ -20,7 +20,8 @@ fn root(app: &AppHandle) -> Result<PathBuf, String> {
         return Ok(Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join(".."));
     }
     let resources = app.path().resource_dir().map_err(|e| e.to_string())?;
-    Ok(resources.join("workstation"))
+    // resource_dir() starts with \?\, and Windows PowerShell's Join-Path fails on that prefix.
+    Ok(dunce::simplified(&resources).join("workstation"))
 }
 
 fn read_json(path: &Path) -> Value {
