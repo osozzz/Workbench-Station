@@ -1,6 +1,7 @@
-import { ArrowRight, Check, ClockCounterClockwise, CornersOut, DownloadSimple, Folder, FolderPlus, GearSix, HardDrives, Minus, MagnifyingGlass, SquaresFour, Trash, WarningCircle, X } from "@phosphor-icons/react";
+import { ArrowRight, Check, ClockCounterClockwise, CornersOut, DownloadSimple, Folder, FolderPlus, GearSix, HardDrives, Minus, MagnifyingGlass, Prohibit, ShieldCheck, SquaresFour, Trash, WarningCircle, X } from "@phosphor-icons/react";
+import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ComponentType } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ComponentType, type ReactNode } from "react";
 import { ageInHours, describeAge, inApp, loadFolders, loadLatestLog, loadSnapshot, pickFolder, refresh, runUpdate, saveFolders, sourceNames, sourceOrder, type Action, type ActionResult, type LogAction, type Risk, type RunLog, type Snapshot } from "./data";
 
 type View = "overview" | "updates" | "history" | "settings";
@@ -112,7 +113,7 @@ export function App() {
           )}
           {!error && snapshot === null && view !== "settings" && <div className="pane skeleton" role="status" aria-label="Reading the last audit" />}
           <div className="view" key={view}>
-            {snapshot && view === "overview" && <Overview snapshot={snapshot} run={run} auditing={auditing} onAudit={audit} onOpenUpdates={() => setView("updates")} onOpenSettings={() => setView("settings")} />}
+            {snapshot && view === "overview" && <Overview snapshot={snapshot} run={run} auditing={auditing} onAudit={audit} onOpenUpdates={() => setView("updates")} onError={setError} />}
             {snapshot && view === "updates" && <Updates snapshot={snapshot} busy={run !== null || auditing} onInstall={install} />}
             {snapshot && view === "history" && <History logs={snapshot.logs} />}
             {view === "settings" && <Settings onError={setError} />}
@@ -150,7 +151,7 @@ function Bar({ host, view, ready, onSelect }: { host: string; view: View; ready:
   return (
     <header className="bar" data-tauri-drag-region>
       <div className="bar-host" data-tauri-drag-region>
-        <HardDrives size={20} aria-hidden="true" />
+        <span className="app-mark" aria-hidden="true" />
         <span data-tauri-drag-region>{host}</span>
       </div>
       <nav className="tabs" ref={row} aria-label="Sections">
@@ -256,8 +257,8 @@ function RunRows({ log }: { log: RunLog }) {
   );
 }
 
-function Overview(props: { snapshot: Snapshot; run: Run | null; auditing: boolean; onAudit(): void; onOpenUpdates(): void; onOpenSettings(): void }) {
-  const { snapshot, run, auditing, onAudit, onOpenUpdates, onOpenSettings } = props;
+function Overview(props: { snapshot: Snapshot; run: Run | null; auditing: boolean; onAudit(): void; onOpenUpdates(): void; onError(message: string | null): void }) {
+  const { snapshot, run, auditing, onAudit, onOpenUpdates, onError } = props;
   const { plan, evaluation } = snapshot;
   const auditButton = (primary: boolean) => (
     <button className={primary ? "button button-primary" : "button"} disabled={!inApp || auditing || run !== null} onClick={onAudit}>
@@ -265,20 +266,7 @@ function Overview(props: { snapshot: Snapshot; run: Run | null; auditing: boolea
       {auditing ? "Auditing, this takes a few minutes" : "Audit this PC"}
     </button>
   );
-  if (!plan) {
-    return (
-      <section className="pane hero" data-scanning={auditing || undefined}>
-        <div>
-          <h1 className="headline">Audit this PC to see what can be updated</h1>
-          <p className="subline">The audit only reads; it changes nothing. It checks projects only in the folders you choose.</p>
-        </div>
-        <div className="hero-actions">
-          {auditButton(true)}
-          <button className="button" onClick={onOpenSettings}><Folder size={18} aria-hidden="true" />Choose project folders</button>
-        </div>
-      </section>
-    );
-  }
+  if (!plan) return <Welcome auditing={auditing} auditButton={auditButton(true)} onError={onError} />;
 
   const ready = plan.actions.filter((a) => a.command !== null);
   const manual = plan.actions.filter((a) => a.command === null);
@@ -584,7 +572,8 @@ function History({ logs }: { logs: RunLog[] }) {
   );
 }
 
-function Settings({ onError }: { onError(message: string | null): void }) {
+/** The project folders the audit may scan, shared by the welcome and Settings. */
+function useFolders(onError: (message: string | null) => void) {
   const [folders, setFolders] = useState<string[] | null>(null);
   const [changed, setChanged] = useState(false);
   const report = (reason: unknown) => onError(String(reason));
@@ -600,10 +589,80 @@ function Settings({ onError }: { onError(message: string | null): void }) {
     setChanged(true);
   };
 
-  const add = async () => {
-    const folder = await pickFolder();
-    if (folder && !folders?.includes(folder)) await save([...(folders ?? []), folder]);
-  };
+  const add = () =>
+    pickFolder()
+      .then((folder) => (folder && !folders?.includes(folder) ? save([...(folders ?? []), folder]) : undefined))
+      .catch(report);
+  const remove = (folder: string) => save((folders ?? []).filter((f) => f !== folder)).catch(report);
+
+  return { folders, changed, add, remove };
+}
+
+/** First run: what the app does and never does, then the three steps to a first install. */
+function Welcome({ auditing, auditButton, onError }: { auditing: boolean; auditButton: ReactNode; onError(message: string | null): void }) {
+  const { folders, add, remove } = useFolders(onError);
+  const chosen = (folders?.length ?? 0) > 0;
+  return (
+    <section className="pane welcome" data-scanning={auditing || undefined}>
+      <div className="welcome-intro">
+        <span className="app-mark app-mark-large" aria-hidden="true" />
+        <h1 className="headline">Keep this PC up to date</h1>
+        <p className="subline">Workstation finds what can be updated on this PC, shows how risky each update is, and installs only what you confirm.</p>
+        <ul className="promises">
+          <li><ShieldCheck size={20} aria-hidden="true" />Nothing is installed until you confirm it.</li>
+          <li><Prohibit size={20} aria-hidden="true" />High-risk and manual updates never run from here.</li>
+          <li><HardDrives size={20} aria-hidden="true" />Reports stay on this PC.</li>
+        </ul>
+      </div>
+      <ol className="steps">
+        <li className="step" data-done={chosen || undefined}>
+          <span className="step-mark">{chosen ? <Check size={16} weight="bold" aria-label="Done" /> : "1"}</span>
+          <div className="step-body">
+            <h2 className="section-title">Choose your project folders</h2>
+            <p>Optional. The audit looks for projects and Git repositories only in these folders, never across a whole drive.</p>
+            {chosen && (
+              <ul className="folder-chips">
+                {folders!.map((folder) => (
+                  <li key={folder}>
+                    <Folder size={14} aria-hidden="true" />
+                    <span>{folder}</span>
+                    <button className="chip-remove" aria-label={`Remove ${folder}`} disabled={auditing} onClick={() => void remove(folder)}>
+                      <X size={12} weight="bold" aria-hidden="true" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div>
+              <button className="button" disabled={!inApp || folders === null || auditing} onClick={() => void add()}>
+                <FolderPlus size={18} aria-hidden="true" />
+                {chosen ? "Add another folder" : "Add folder"}
+              </button>
+            </div>
+          </div>
+        </li>
+        <li className="step">
+          <span className="step-mark">2</span>
+          <div className="step-body">
+            <h2 className="section-title">Audit this PC</h2>
+            <p>Reads the apps, tools, and settings on this PC and checks online for newer versions. It changes nothing and takes about three minutes.</p>
+            <div>{auditButton}</div>
+          </div>
+        </li>
+        <li className="step">
+          <span className="step-mark">3</span>
+          <div className="step-body">
+            <h2 className="section-title">Review and install</h2>
+            <p>Pick the updates you want and see the exact command for each one first. Windows asks for permission once, then this PC is audited again to check the result.</p>
+          </div>
+        </li>
+      </ol>
+    </section>
+  );
+}
+
+function Settings({ onError }: { onError(message: string | null): void }) {
+  const { folders, changed, add, remove } = useFolders(onError);
 
   return (
     <>
@@ -616,7 +675,7 @@ function Settings({ onError }: { onError(message: string | null): void }) {
             <h2 className="section-title">Project folders</h2>
             <p className="pane-note">The audit checks projects and Git repositories in these folders, and nowhere else.</p>
           </div>
-          <button className="button" disabled={!inApp || folders === null} onClick={() => add().catch(report)}>
+          <button className="button" disabled={!inApp || folders === null} onClick={() => void add()}>
             <FolderPlus size={18} aria-hidden="true" />
             Add folder
           </button>
@@ -626,7 +685,7 @@ function Settings({ onError }: { onError(message: string | null): void }) {
             <li className="row folder" key={folder}>
               <Folder size={20} aria-hidden="true" />
               <span className="row-title">{folder}</span>
-              <button className="icon-button" aria-label={`Remove ${folder}`} onClick={() => save(folders.filter((f) => f !== folder)).catch(report)}>
+              <button className="icon-button" aria-label={`Remove ${folder}`} onClick={() => void remove(folder)}>
                 <Trash size={18} aria-hidden="true" />
               </button>
             </li>
@@ -640,6 +699,36 @@ function Settings({ onError }: { onError(message: string | null): void }) {
           </p>
         )}
       </section>
+      <About />
     </>
+  );
+}
+
+function About() {
+  const [version, setVersion] = useState<string | null>(null);
+  useEffect(() => {
+    if (inApp) void getVersion().then(setVersion, () => undefined);
+  }, []);
+
+  return (
+    <section className="pane settings">
+      <div className="about-head">
+        <span className="app-mark app-mark-large" aria-hidden="true" />
+        <div>
+          <h2 className="section-title">Workstation</h2>
+          <p className="pane-note">{version ? `Version ${version}` : "Version not available in this preview"}</p>
+        </div>
+      </div>
+      <dl className="facts">
+        <dt>Publisher</dt>
+        <dd>Alejandro Osorno</dd>
+        <dt>License</dt>
+        <dd>MIT</dd>
+        <dt>Source code</dt>
+        <dd>github.com/osozzz/Workstation</dd>
+        <dt>Your data</dt>
+        <dd>Settings and reports stay on this PC, in %LOCALAPPDATA%\com.osozzz.workstation. Uninstalling from Windows Settings can delete them too.</dd>
+      </dl>
+    </section>
   );
 }
