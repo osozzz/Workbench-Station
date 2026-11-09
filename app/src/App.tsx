@@ -624,7 +624,7 @@ function Welcome({ auditing, auditButton, onError }: { auditing: boolean; auditB
       <div className="welcome-intro">
         <span className="app-mark app-mark-large" aria-hidden="true" />
         <h1 className="headline">Keep this PC up to date</h1>
-        <p className="subline">Workstation finds what can be updated on this PC, shows how risky each update is, and installs only what you confirm.</p>
+        <p className="subline">Workbench Station finds what can be updated on this PC, shows how risky each update is, and installs only what you confirm.</p>
         <ul className="promises">
           <li><ShieldCheck size={20} aria-hidden="true" />Nothing is installed until you confirm it.</li>
           <li><Prohibit size={20} aria-hidden="true" />High-risk and manual updates never run from here.</li>
@@ -732,7 +732,7 @@ function About() {
       <div className="about-head">
         <span className="app-mark app-mark-large" aria-hidden="true" />
         <div>
-          <h2 className="section-title">Workstation</h2>
+          <h2 className="section-title">Workbench Station</h2>
           <p className="pane-note">{version ? `Version ${version}` : "Version not available in this preview"}</p>
         </div>
       </div>
@@ -742,9 +742,9 @@ function About() {
         <dt>License</dt>
         <dd>MIT</dd>
         <dt>Source code</dt>
-        <dd>github.com/osozzz/Workstation</dd>
+        <dd>github.com/osozzz/workbench-station</dd>
         <dt>Your data</dt>
-        <dd>Settings and reports stay on this PC, in %LOCALAPPDATA%\com.osozzz.workstation. Uninstalling from Windows Settings can delete them too.</dd>
+        <dd>Settings and reports stay on this PC, in %LOCALAPPDATA%\com.osozzz.workbenchstation. Uninstalling from Windows Settings can delete them too.</dd>
       </dl>
     </section>
   );
