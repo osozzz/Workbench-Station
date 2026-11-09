@@ -4,6 +4,10 @@ All notable changes to this workstation toolkit are documented here.
 
 ## Unreleased
 
+### Fixed
+
+- On Windows PowerShell 5.1, a command that finished almost at once could be logged without an exit code, so an update that succeeded could show as failed. The executor now starts commands with `Process.Start`, which keeps the exit code. A prompt still reads end-of-input, and a child process left running still can't hold the action open.
+
 ## 2.3.0 — 2026-11-04
 
 ### Added
