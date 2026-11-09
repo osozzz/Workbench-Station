@@ -1209,7 +1209,7 @@ jobs:
       - name: Cache Tauri bundler tools
         uses: actions/cache@v6.1.0
         with:
-          path: ~AppDataocal	auri
+          path: ~/AppData/Local/tauri
           key: tauri-tools-${{ runner.os }}-${{ hashFiles('app/pnpm-lock.yaml') }}
 
       # The NSIS download from GitHub releases intermittently returns HTTP 504, so a failed build is retried.
