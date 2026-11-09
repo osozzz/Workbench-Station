@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Workstation",
+  "productName": "Workbench Station",
   "version": "3.0.0",
-  "identifier": "com.osozzz.workstation",
+  "identifier": "com.osozzz.workbenchstation",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Workstation",
+        "title": "Workbench Station",
         "width": 1240,
         "height": 820,
         "minWidth": 760,
@@ -34,8 +34,8 @@
     "copyright": "Copyright (c) 2026 Alejandro Osorno",
     "category": "DeveloperTool",
     "shortDescription": "Keeps the apps and tools on this PC up to date",
-    "longDescription": "Workstation audits this PC, shows which apps and developer tools can be updated and how risky each update is, and installs only the updates you confirm.",
-    "homepage": "https://github.com/osozzz/Workstation",
+    "longDescription": "Workbench Station audits this PC, shows which apps and developer tools can be updated and how risky each update is, and installs only the updates you confirm.",
+    "homepage": "https://github.com/osozzz/workbench-station",
     "license": "MIT",
     "licenseFile": "../../LICENSE",
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/icon.ico"],

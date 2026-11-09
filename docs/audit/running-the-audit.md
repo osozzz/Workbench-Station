@@ -11,8 +11,8 @@ Everything here is read-only. The audit never installs, upgrades, or reconfigure
 - Network access, if you want latest-version information. Without it, those fields are reported as unavailable and the audit still completes.
 
 ```powershell
-git clone https://github.com/osozzz/Workstation.git
-cd Workstation
+git clone https://github.com/osozzz/workbench-station.git
+cd workbench-station
 git checkout v1.1.0
 ```
 

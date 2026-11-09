@@ -1,6 +1,6 @@
-# Developer Workstation Standard
+# Workbench Station
 
-A Windows developer-workstation toolkit that keeps a PC up to date with a declared standard. It audits what is installed, evaluates it against the workstation policy, and (in upcoming releases) plans and applies the updates. Comparing two PCs is available as an extra.
+Workbench Station keeps a Windows developer PC up to date with a declared standard. It is a desktop app (`app/`) on top of a PowerShell engine (`scripts/`), which also runs on its own from the command line. It audits what is installed, evaluates it against the workstation policy, and (in upcoming releases) plans and applies the updates. Comparing two PCs is available as an extra.
 
 ## Current phase
 
@@ -47,7 +47,7 @@ Optional project and Git discovery needs `config\workstation.local.json`; see `c
 
 ## Desktop app
 
-`app/` is a Tauri app that does the same work without a terminal: it audits the PC, lists the updates, installs the ones you select, and shows live progress and past runs. It only starts the scripts in `scripts/` and reads their reports, so every rule in `docs/policies/update-execution-safety.md` still applies.
+Workbench Station (`app/`) is a Tauri app that does the same work without a terminal: it audits the PC, lists the updates, installs the ones you select, and shows live progress and past runs. It only starts the scripts in `scripts/` and reads their reports, so every rule in `docs/policies/update-execution-safety.md` still applies.
 
 ```powershell
 cd app
@@ -56,11 +56,11 @@ pnpm tauri dev     # run it from this repository
 pnpm tauri build   # build the installer into app\src-tauri\target\release\bundle\nsis
 ```
 
-Building needs Node.js, pnpm, and Rust. The installed app needs no terminal. On first run it asks for your project folders, so its audits include local project and Git discovery, and walks you through the first audit. It keeps those settings and its reports in `%LOCALAPPDATA%\com.osozzz.workstation`, so they survive app updates.
+Building needs Node.js, pnpm, and Rust. The installed app needs no terminal. On first run it asks for your project folders, so its audits include local project and Git discovery, and walks you through the first audit. It keeps those settings and its reports in `%LOCALAPPDATA%\com.osozzz.workbenchstation`, so they survive app updates.
 
 The installer runs for the current user only, so it needs no administrator rights, and it is available in English and Spanish. It is not code-signed yet, so a downloaded copy shows a Windows SmartScreen warning: choose **More info**, then **Run anyway**. To remove the app, use **Settings > Apps** in Windows; the uninstaller can also delete your settings and reports.
 
-The app icon and installer artwork come from `app/icon.svg` (`pnpm tauri icon icon.svg`) and `app/src-tauri/installer/`.
+The app icon and installer artwork come from `app/icon.svg` (`pnpm tauri icon icon.svg`) and `app/src-tauri/installer/`. The visual system (palette, type, glass, motion, voice) is documented in `DESIGN.md`.
 
 ## Roadmap
 
@@ -87,15 +87,15 @@ The app icon and installer artwork come from `app/icon.svg` (`pnpm tauri icon ic
 With GitHub CLI:
 
 ```powershell
-gh repo clone osozzz/Workstation
-cd Workstation
+gh repo clone osozzz/workbench-station
+cd workbench-station
 ```
 
 Or with Git:
 
 ```powershell
-git clone https://github.com/osozzz/Workstation.git
-cd Workstation
+git clone https://github.com/osozzz/workbench-station.git
+cd workbench-station
 ```
 
 ## Repository workflow

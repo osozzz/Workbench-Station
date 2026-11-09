@@ -180,7 +180,7 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![read_data, save_folders, pick_folder, refresh, update])
         .run(tauri::generate_context!())
-        .expect("the Workstation window could not start");
+        .expect("the Workbench Station window could not start");
 }
 
 #[cfg(test)]
