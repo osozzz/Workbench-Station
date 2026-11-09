@@ -8,6 +8,8 @@ The `main` ruleset requires a single status check, `validate`. It is an aggregat
 
 Pinned PowerShell modules are installed through `.github/scripts/Install-PinnedModule.ps1`. Hosted runners intermittently lose the PSGallery registration, so the helper re-registers it and retries with backoff. That infrastructure noise does not fail a required check, while a real installation failure still does after the last attempt.
 
+The `desktop-app` job treats Tauri's NSIS download the same way: the bundler tools are cached between runs, and the build is retried twice with backoff, because the download from GitHub releases intermittently returns HTTP 504.
+
 ## Area checks
 
 | Check | What it runs | Documented in |
