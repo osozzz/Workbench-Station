@@ -114,7 +114,7 @@ export function App() {
           {!error && snapshot === null && view !== "settings" && <div className="pane skeleton" role="status" aria-label="Reading the last audit" />}
           <div className="view" key={view}>
             {snapshot && view === "overview" && <Overview snapshot={snapshot} run={run} auditing={auditing} onAudit={audit} onOpenUpdates={() => setView("updates")} onError={setError} />}
-            {snapshot && view === "updates" && <Updates snapshot={snapshot} busy={run !== null || auditing} onInstall={install} />}
+            {snapshot && view === "updates" && <Updates snapshot={snapshot} busy={run !== null || auditing} onInstall={install} onOpenOverview={() => setView("overview")} />}
             {snapshot && view === "history" && <History logs={snapshot.logs} />}
             {view === "settings" && <Settings onError={setError} />}
           </div>
@@ -399,7 +399,7 @@ function ActionDetail({ action }: { action: Action }) {
   );
 }
 
-function Updates({ snapshot, busy, onInstall }: { snapshot: Snapshot; busy: boolean; onInstall(actionIds: string[]): void }) {
+function Updates({ snapshot, busy, onInstall, onOpenOverview }: { snapshot: Snapshot; busy: boolean; onInstall(actionIds: string[]): void; onOpenOverview(): void }) {
   const actions = snapshot.plan?.actions ?? [];
   const stale = snapshot.plan ? ageInHours(snapshot.plan.report.generatedAt) > 24 : true;
   const dialog = useRef<HTMLDialogElement>(null);
@@ -429,6 +429,23 @@ function Updates({ snapshot, busy, onInstall }: { snapshot: Snapshot; busy: bool
   const focused = visible.find((a) => a.actionId === focusedId) ?? visible[0] ?? null;
   const filters: [Filter, string][] = [["ready", "Ready"], ["manual", "Needs you"], ["low", "Low risk"], ["medium", "Medium risk"], ["high", "High risk"]];
 
+  if (!snapshot.plan) {
+    return (
+      <>
+        <div className="page-head">
+          <h1 className="page-title">Updates</h1>
+        </div>
+        <section className="pane first-run">
+          <p className="empty">Updates appear here after the first audit of this PC.</p>
+          <button className="button" onClick={onOpenOverview}>
+            <SquaresFour size={18} aria-hidden="true" />
+            Go to Overview
+          </button>
+        </section>
+      </>
+    );
+  }
+
   return (
     <>
       <div className="page-head">
@@ -448,7 +465,7 @@ function Updates({ snapshot, busy, onInstall }: { snapshot: Snapshot; busy: bool
 
       <div className="master">
         <section className="pane update-list">
-          {visible.length === 0 && <p className="empty">Nothing here. Audit again to refresh this list.</p>}
+          {visible.length === 0 && <p className="empty">No updates in this group.</p>}
           {groupBySource(visible).map(([source, items]) => (
             <div className="update-group" key={source}>
               <h2 className="group-title">

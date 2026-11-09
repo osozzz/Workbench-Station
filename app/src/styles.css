@@ -356,6 +356,8 @@ code {
   position: fixed;
   inset: 0;
   overflow-y: auto;
+  /* Reserved on both sides, so views of any height keep the same width and stay centered under the bar. */
+  scrollbar-gutter: stable both-edges;
   padding: 92px 32px 40px;
 }
 
@@ -452,6 +454,14 @@ code {
 .empty {
   padding: 8px 0;
   color: var(--silk-soft);
+}
+
+.first-run {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
 }
 
 .skeleton {
