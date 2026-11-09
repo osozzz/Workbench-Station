@@ -742,7 +742,7 @@ function About() {
         <dt>License</dt>
         <dd>MIT</dd>
         <dt>Source code</dt>
-        <dd>github.com/osozzz/workbench-station</dd>
+        <dd>github.com/osozzz/Workbench-Station</dd>
         <dt>Your data</dt>
         <dd>Settings and reports stay on this PC, in %LOCALAPPDATA%\com.osozzz.workbenchstation. Uninstalling from Windows Settings can delete them too.</dd>
       </dl>
