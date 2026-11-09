@@ -56,7 +56,11 @@ pnpm tauri dev     # run it from this repository
 pnpm tauri build   # build the installer into app\src-tauri\target\release\bundle\nsis
 ```
 
-Building needs Node.js, pnpm, and Rust. The installed app needs no terminal. Choose your project folders in Settings, so its audits include local project and Git discovery. It keeps those settings and its reports in `%LOCALAPPDATA%\com.osozzz.workstation`, so they survive app updates.
+Building needs Node.js, pnpm, and Rust. The installed app needs no terminal. On first run it asks for your project folders, so its audits include local project and Git discovery, and walks you through the first audit. It keeps those settings and its reports in `%LOCALAPPDATA%\com.osozzz.workstation`, so they survive app updates.
+
+The installer runs for the current user only, so it needs no administrator rights, and it is available in English and Spanish. It is not code-signed yet, so a downloaded copy shows a Windows SmartScreen warning: choose **More info**, then **Run anyway**. To remove the app, use **Settings > Apps** in Windows; the uninstaller can also delete your settings and reports.
+
+The app icon and installer artwork come from `app/icon.svg` (`pnpm tauri icon icon.svg`) and `app/src-tauri/installer/`.
 
 ## Roadmap
 
@@ -121,3 +125,7 @@ It must not silently:
 - expose arbitrary environment variables or secrets.
 
 See `SECURITY.md` and `docs/policies/audit-safety.md`.
+
+## License
+
+MIT. See `LICENSE`.

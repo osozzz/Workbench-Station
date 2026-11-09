@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Source for every app and installer icon: `pnpm tauri icon icon.svg`. Four update marks under glass. -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1d5a4b"/>
+      <stop offset="0.55" stop-color="#11302a"/>
+      <stop offset="1" stop-color="#0a1a17"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.82" cy="0.9" r="0.6">
+      <stop offset="0" stop-color="#dda765" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#dda765" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.55"/>
+      <stop offset="0.35" stop-color="#fff" stop-opacity="0.06"/>
+      <stop offset="0.7" stop-color="#fff" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0.3"/>
+    </linearGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.45"/>
+      <stop offset="0.45" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="32" y="32" width="960" height="960" rx="224" fill="url(#tile)"/>
+  <rect x="32" y="32" width="960" height="960" rx="224" fill="url(#glow)"/>
+  <rect x="40" y="40" width="944" height="944" rx="216" fill="none" stroke="url(#rim)" stroke-width="16"/>
+  <g>
+    <rect x="232" y="292" width="112" height="440" rx="36" fill="#6fcfb0"/>
+    <rect x="388" y="292" width="112" height="440" rx="36" fill="#6fcfb0"/>
+    <rect x="544" y="292" width="112" height="440" rx="36" fill="#dda765"/>
+    <rect x="232" y="292" width="112" height="440" rx="36" fill="url(#gloss)"/>
+    <rect x="388" y="292" width="112" height="440" rx="36" fill="url(#gloss)"/>
+    <rect x="544" y="292" width="112" height="440" rx="36" fill="url(#gloss)"/>
+    <rect x="714" y="306" width="84" height="412" rx="24" fill="none" stroke="#9cbcaf" stroke-width="28"/>
+  </g>
+</svg>

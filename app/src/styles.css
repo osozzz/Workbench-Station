@@ -1240,7 +1240,187 @@ code {
   color: var(--low);
 }
 
+/* The app's own mark, the same artwork as the icon. */
+
+.app-mark {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  background: url("../src-tauri/icons/128x128.png") center / contain no-repeat;
+}
+
+.app-mark-large {
+  width: 64px;
+  height: 64px;
+}
+
+/* First run */
+
+.welcome {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 32px 48px;
+  overflow: hidden;
+  padding: 40px;
+}
+
+.welcome-intro {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+
+.welcome-intro .subline {
+  margin-top: 0;
+}
+
+.promises {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--hairline);
+  list-style: none;
+}
+
+.promises li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.promises svg {
+  flex: none;
+  color: var(--low);
+}
+
+.steps {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 16px;
+  padding: 20px;
+  border-radius: var(--r-tray);
+  background: var(--tray);
+}
+
+.step-mark {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1.5px var(--manual);
+  color: var(--silk-soft);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.step[data-done] .step-mark {
+  background: var(--low);
+  box-shadow: none;
+  color: var(--copper-ink);
+}
+
+.step-body {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.step-body p {
+  max-width: 60ch;
+  color: var(--silk-soft);
+}
+
+.folder-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.folder-chips li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 4px 4px 12px;
+  border-radius: 999px;
+  background: var(--glass-float);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  font-size: 14px;
+}
+
+.folder-chips span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folder-chips svg {
+  flex: none;
+  color: var(--copper);
+}
+
+.chip-remove {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--silk-soft);
+  cursor: pointer;
+}
+
+.chip-remove:hover:not(:disabled) {
+  background: var(--tray);
+  color: var(--high);
+}
+
+/* About */
+
+.about-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 10px 24px;
+  margin: 0;
+}
+
+.facts dt {
+  color: var(--silk-soft);
+}
+
+.facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
 @media (max-width: 980px) {
+  .welcome {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 28px;
+  }
+
   .headline {
     font-size: 2.375rem;
   }
