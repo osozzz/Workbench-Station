@@ -1,7 +1,8 @@
 import { WarningCircle } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
-import { loadLatestLog, loadSnapshot, refresh, runUpdate, type Snapshot } from "./data";
-import { Bar, type View } from "./Bar";
+import { inApp, loadLatestLog, loadSnapshot, refresh, runUpdate, type Snapshot } from "./data";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { Bar, viewOrder, type View } from "./Bar";
 import { GlassFilters } from "./glass";
 import { History } from "./views/History";
 import { Overview, type Run } from "./views/Overview";
@@ -18,6 +19,19 @@ export function App() {
   const reload = () => loadSnapshot().then(setSnapshot, (reason) => setError(`The reports could not be read: ${reason}`));
   useEffect(() => {
     void reload();
+    // The window starts hidden so it never flashes empty; it appears once the app has drawn.
+    if (inApp) void getCurrentWindow().show();
+
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
+      const target = viewOrder[Number(event.key) - 1];
+      if (target) {
+        event.preventDefault();
+        setView(target);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   const audit = async () => {

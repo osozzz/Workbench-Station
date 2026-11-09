@@ -177,7 +177,31 @@ async fn update(app: AppHandle, action_ids: Vec<String>) -> Result<(), String> {
 
 fn main() {
     tauri::Builder::default()
+        // Registered first, so a second launch only brings the open window forward.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
+        // Restores size, position and maximized state. Visibility stays with the app, which shows the
+        // window once it has drawn.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(tauri_plugin_window_state::StateFlags::all() & !tauri_plugin_window_state::StateFlags::VISIBLE)
+                .build(),
+        )
         .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            // If the page never runs, the window still appears instead of staying hidden.
+            let window = app.get_webview_window("main").expect("the main window exists");
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(5));
+                let _ = window.show();
+            });
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![read_data, save_folders, pick_folder, refresh, update])
         .run(tauri::generate_context!())
         .expect("the Workbench Station window could not start");
