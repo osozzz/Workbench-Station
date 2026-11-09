@@ -35,7 +35,7 @@
     "category": "DeveloperTool",
     "shortDescription": "Keeps the apps and tools on this PC up to date",
     "longDescription": "Workbench Station audits this PC, shows which apps and developer tools can be updated and how risky each update is, and installs only the updates you confirm.",
-    "homepage": "https://github.com/osozzz/workbench-station",
+    "homepage": "https://github.com/osozzz/Workbench-Station",
     "license": "MIT",
     "licenseFile": "../../LICENSE",
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/icon.ico"],

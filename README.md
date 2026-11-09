@@ -87,15 +87,15 @@ The app icon and installer artwork come from `app/icon.svg` (`pnpm tauri icon ic
 With GitHub CLI:
 
 ```powershell
-gh repo clone osozzz/workbench-station
-cd workbench-station
+gh repo clone osozzz/Workbench-Station
+cd Workbench-Station
 ```
 
 Or with Git:
 
 ```powershell
-git clone https://github.com/osozzz/workbench-station.git
-cd workbench-station
+git clone https://github.com/osozzz/Workbench-Station.git
+cd Workbench-Station
 ```
 
 ## Repository workflow
