@@ -1,6 +1,6 @@
-import { ClockCounterClockwise, CornersOut, DownloadSimple, GearSix, Minus, SquaresFour, X } from "@phosphor-icons/react";
+import { ClockCounterClockwise, DownloadSimple, GearSix, SquaresFour } from "@phosphor-icons/react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useLayoutEffect, useRef, useState, type CSSProperties, type ComponentType } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ComponentType } from "react";
 import { inApp } from "./data";
 
 export type View = "overview" | "updates" | "history" | "settings";
@@ -12,10 +12,46 @@ const tabs: { view: View; label: string; Icon: ComponentType<{ size?: number; we
   { view: "settings", label: "Settings", Icon: GearSix },
 ];
 
+/** Ctrl+1 to Ctrl+4 open the views in tab order. */
+export const viewOrder = tabs.map((tab) => tab.view);
+
+/** Windows 11's caption glyphs, drawn on a 10 px grid. */
+const glyphs = {
+  minimize: <path d="M0 5.5h10" />,
+  maximize: <rect x="0.5" y="0.5" width="9" height="9" />,
+  restore: (
+    <>
+      <rect x="0.5" y="2.5" width="7" height="7" />
+      <path d="M2.5 2.5v-2h7v7h-2" />
+    </>
+  ),
+  close: <path d="M0.5 0.5l9 9M9.5 0.5l-9 9" />,
+};
+
+function Glyph({ name }: { name: keyof typeof glyphs }) {
+  return <svg viewBox="0 0 10 10" aria-hidden="true">{glyphs[name]}</svg>;
+}
+
+/** Follows the window: Maximize turns into Restore, and the bar dims while another window has focus. */
+function useWindowState() {
+  const [maximized, setMaximized] = useState(false);
+  const [focused, setFocused] = useState(true);
+  useEffect(() => {
+    if (!inApp) return;
+    const appWindow = getCurrentWindow();
+    const readMaximized = () => void appWindow.isMaximized().then(setMaximized);
+    readMaximized();
+    const listening = [appWindow.onResized(readMaximized), appWindow.onFocusChanged(({ payload }) => setFocused(payload))];
+    return () => listening.forEach((unlisten) => void unlisten.then((stop) => stop()));
+  }, []);
+  return { maximized, focused };
+}
+
 /** The floating bar is also the window's title bar, so it can be dragged and holds the window buttons. */
 export function Bar({ host, view, ready, onSelect }: { host: string; view: View; ready: number; onSelect(view: View): void }) {
   const row = useRef<HTMLElement>(null);
   const [lens, setLens] = useState<CSSProperties>({ opacity: 0 });
+  const { maximized, focused } = useWindowState();
 
   // The droplet follows the current tab; its size comes from the tab, which depends on the font and the count.
   useLayoutEffect(() => {
@@ -30,7 +66,7 @@ export function Bar({ host, view, ready, onSelect }: { host: string; view: View;
   }, [view, ready]);
 
   return (
-    <header className="bar" data-tauri-drag-region>
+    <header className="bar" data-tauri-drag-region data-inactive={!focused || undefined}>
       <div className="bar-host" data-tauri-drag-region>
         <span className="app-mark" aria-hidden="true" />
         <span data-tauri-drag-region>{host}</span>
@@ -48,9 +84,15 @@ export function Bar({ host, view, ready, onSelect }: { host: string; view: View;
       <div className="bar-window">
         {inApp && (
           <>
-            <button className="window-button" aria-label="Minimize" onClick={() => void getCurrentWindow().minimize()}><Minus size={16} /></button>
-            <button className="window-button" aria-label="Maximize" onClick={() => void getCurrentWindow().toggleMaximize()}><CornersOut size={16} /></button>
-            <button className="window-button" data-close aria-label="Close" onClick={() => void getCurrentWindow().close()}><X size={16} /></button>
+            <button className="window-button" aria-label="Minimize" onClick={() => void getCurrentWindow().minimize()}>
+              <Glyph name="minimize" />
+            </button>
+            <button className="window-button" aria-label={maximized ? "Restore" : "Maximize"} onClick={() => void getCurrentWindow().toggleMaximize()}>
+              <Glyph name={maximized ? "restore" : "maximize"} />
+            </button>
+            <button className="window-button" data-close aria-label="Close" onClick={() => void getCurrentWindow().close()}>
+              <Glyph name="close" />
+            </button>
           </>
         )}
       </div>

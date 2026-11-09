@@ -14,6 +14,7 @@
       {
         "label": "main",
         "title": "Workbench Station",
+        "visible": false,
         "width": 1240,
         "height": 820,
         "minWidth": 760,

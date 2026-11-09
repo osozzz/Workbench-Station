@@ -1,7 +1,7 @@
 import { SquaresFour, WarningCircle } from "@phosphor-icons/react";
 import { useMemo, useRef, useState } from "react";
 import { ageInHours, inApp, sourceNames, type Action, type Risk, type Snapshot } from "../data";
-import { groupBySource, versionsOf } from "../actions";
+import { Command, groupBySource, versionsOf } from "../actions";
 
 type Filter = "ready" | "manual" | Risk;
 
@@ -15,7 +15,7 @@ function ActionDetail({ action }: { action: Action }) {
         <span>{sourceNames[action.source.type] ?? action.source.type}</span>
       </p>
       <p>{action.message}</p>
-      {action.command ? <code className="command">{action.command}</code> : <p className="detail-note">This one has no command. You do it yourself.</p>}
+      {action.command ? <Command text={action.command} /> : <p className="detail-note">This one has no command. You do it yourself.</p>}
       {blocked && <p className="detail-note">High-risk updates do not run from here.</p>}
     </>
   );
@@ -146,7 +146,7 @@ export function Updates({ snapshot, busy, onInstall, onOpenOverview }: { snapsho
               {versionsOf(action) ?? <span />}
               <p>
                 {action.risk} risk, {action.reversible ? "can be undone" : "cannot be undone"}
-                <code className="command">{action.command}</code>
+                {action.command && <Command text={action.command} />}
               </p>
             </li>
           ))}

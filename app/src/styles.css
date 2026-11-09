@@ -350,6 +350,33 @@ code {
   color: #fff;
 }
 
+/* Windows 11's caption glyphs: 10 px, a hairline stroke kept crisp at every scale. */
+.window-button svg {
+  width: 10px;
+  height: 10px;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  shape-rendering: crispEdges;
+}
+
+.window-button[data-close] svg {
+  shape-rendering: geometricPrecision;
+}
+
+/* Like a native title bar, the bar steps back while another window has focus. */
+.bar-host,
+.tabs,
+.bar-window {
+  transition: opacity 200ms ease-out;
+}
+
+.bar[data-inactive] :is(.bar-host, .tabs, .bar-window) {
+  opacity: 0.55;
+}
+
 /* Page */
 
 .page {
@@ -1044,12 +1071,40 @@ code {
 }
 
 .command {
-  display: block;
-  padding: 10px 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 6px 10px 12px;
   border-radius: 10px;
   background: var(--tray);
   color: var(--silk);
+}
+
+.command code {
+  flex: 1;
+  min-width: 0;
+  padding-top: 3px;
   overflow-wrap: anywhere;
+}
+
+.command-copy {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: -2px 0;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--silk-soft);
+  cursor: pointer;
+  transition: background-color 140ms ease-out, color 140ms ease-out;
+}
+
+.command-copy:hover {
+  background: var(--tray);
+  color: var(--silk);
 }
 
 /* The install dock floats over the list, so rows pass under its rim. */
