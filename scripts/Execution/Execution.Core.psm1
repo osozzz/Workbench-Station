@@ -188,11 +188,11 @@ function Invoke-ExecutionCall {
     .SYNOPSIS
     Runs one validated call; the default runner for Invoke-WorkstationUpdate.
     .DESCRIPTION
-    Output goes to files and stdin is an empty file. The executor waits only for the process it
-    started: a child left running by the tool (flutter upgrade starts Dart processes) can no longer
-    hold a pipe open and keep the action "running" after the update finished, and a prompt reads
-    end-of-input instead of waiting forever. On timeout the process is stopped and the partial
-    output is kept.
+    stdin is closed at once, so a prompt reads end-of-input instead of waiting forever. Output is
+    copied to files as it arrives. The executor waits only for the process it started: a child left
+    running by the tool (flutter upgrade starts Dart processes) can hold the output pipes open, so
+    after the process exits the output gets a short grace period and is then read as it stands. On
+    timeout the process is stopped and the partial output is kept.
     #>
     param([Parameter(Mandatory)][psobject]$Call)
 
@@ -203,38 +203,41 @@ function Invoke-ExecutionCall {
 
     $work = Join-Path ([IO.Path]::GetTempPath()) ('workstation-update-' + [guid]::NewGuid().ToString('N'))
     [IO.Directory]::CreateDirectory($work) | Out-Null
-    $stdin = Join-Path $work 'stdin.txt'
     $stdout = Join-Path $work 'stdout.txt'
     $stderr = Join-Path $work 'stderr.txt'
-    [IO.File]::WriteAllText($stdin, '')
+    $process = $null
+    $sinks = @()
 
     try {
-        $startParameters = @{
-            FilePath               = $resolved.Source
-            RedirectStandardInput  = $stdin
-            RedirectStandardOutput = $stdout
-            RedirectStandardError  = $stderr
-            NoNewWindow            = $true
-            PassThru               = $true
-        }
-        $argumentString = ConvertTo-ExecutionArgumentString -Arguments $Call.arguments
-        if (-not [string]::IsNullOrEmpty($argumentString)) { $startParameters['ArgumentList'] = $argumentString }
+        $start = New-Object Diagnostics.ProcessStartInfo
+        $start.FileName = $resolved.Source
+        $start.Arguments = ConvertTo-ExecutionArgumentString -Arguments $Call.arguments
+        $start.UseShellExecute = $false
+        $start.RedirectStandardInput = $true
+        $start.RedirectStandardOutput = $true
+        $start.RedirectStandardError = $true
 
-        $process = Start-Process @startParameters
-        # Windows PowerShell 5.1 reports ExitCode as $null unless the process handle is opened
-        # before the process exits; every successful update was logged as "Exit code ." without this.
-        $null = $process.Handle
+        # Process.Start keeps the handle it created the process with, so ExitCode survives a command
+        # that exits at once. Start-Process on Windows PowerShell 5.1 closes that handle before it
+        # returns, and a fast command's exit code was lost (#240).
+        $process = [Diagnostics.Process]::Start($start)
+        $process.StandardInput.Close()
+        $sinks = foreach ($pipe in @(@($process.StandardOutput, $stdout), @($process.StandardError, $stderr))) {
+            # Buffer size 1 writes every chunk through, so the file always holds what has arrived.
+            $file = New-Object IO.FileStream($pipe[1], [IO.FileMode]::Create, [IO.FileAccess]::Write, ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete), 1)
+            [pscustomobject]@{ File = $file; Pipe = $pipe[0]; Copy = $pipe[0].BaseStream.CopyToAsync($file) }
+        }
+
         $exited = $process.WaitForExit($script:ActionTimeoutSeconds * 1000)
         if (-not $exited) {
             try { $process.Kill() } catch { }
             [void]$process.WaitForExit(10000)
         }
+        try { [void][Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($sinks.Copy), 2000) } catch { }
 
-        # A child that outlives the process may still hold the file open; read it shared.
         $read = {
             param($Path)
-            if (-not (Test-Path -LiteralPath $Path)) { return '' }
-            $stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete)
+            $stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
             try { return (New-Object IO.StreamReader($stream, [Text.Encoding]::UTF8)).ReadToEnd() } finally { $stream.Dispose() }
         }
         $text = ((& $read $stdout) + [Environment]::NewLine + (& $read $stderr)).Trim()
@@ -249,6 +252,9 @@ function Invoke-ExecutionCall {
         }
     }
     finally {
+        # Closing the pipes ends any copy a lingering child still holds open.
+        foreach ($sink in $sinks) { $sink.Pipe.Dispose(); $sink.File.Dispose() }
+        if ($null -ne $process) { $process.Dispose() }
         Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
     }
 }

@@ -210,12 +210,13 @@ Describe 'Process runner' {
         ConvertTo-ExecutionArgumentString -Arguments @('cmdline-tools;latest', 'add', '-g', 'a@1.0') | Should -Be '"cmdline-tools;latest" add -g a@1.0'
     }
 
-    # Run-Update.cmd hosts the executor in Windows PowerShell 5.1, which loses ExitCode unless the
-    # process handle is opened early; Pester itself runs on PowerShell 7.
+    # Run-Update.cmd hosts the executor in Windows PowerShell 5.1, where Start-Process lost the exit
+    # code of a command that exits at once (#240); Pester itself runs on PowerShell 7. The race was
+    # rare, so the probe repeats the fast command.
     It 'passes the exit code through on Windows PowerShell 5.1' {
         $module = Join-Path $PSScriptRoot '..\..\..\scripts\Execution\Execution.Core.psm1'
-        $probe = "Import-Module '$module'; (Invoke-ExecutionCall -Call ([pscustomobject]@{ filePath = 'cmd.exe'; arguments = @('/d', '/c', 'exit 7') })).exitCode"
-        (& $script:windowsPowerShell -NoProfile -NonInteractive -Command $probe | Select-Object -Last 1) | Should -Be '7'
+        $probe = "Import-Module '$module'; (1..25 | ForEach-Object { (Invoke-ExecutionCall -Call ([pscustomobject]@{ filePath = 'cmd.exe'; arguments = @('/d', '/c', 'exit 7') })).exitCode }) -join ','"
+        (& $script:windowsPowerShell -NoProfile -NonInteractive -Command $probe | Select-Object -Last 1) | Should -Be ((@('7') * 25) -join ',')
     }
 
     It 'reports a command that cannot be found' {
