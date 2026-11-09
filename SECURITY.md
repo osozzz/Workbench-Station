@@ -28,3 +28,14 @@ Generated workstation outputs belong in local ignored directories only.
 Before v1.0.0, only the latest `main` and active release candidate are supported.
 
 After v1.0.0, the support policy tracks the current production release unless a later security policy explicitly changes it.
+
+## Dependencies
+
+Dependabot opens grouped update PRs every week for the desktop app's npm and Cargo packages and for GitHub Actions (`.github/dependabot.yml`). Security updates arrive as soon as an advisory is published.
+
+Known advisories that do not affect the Windows app:
+
+| Advisory | Package | Why it does not apply | Resolved by |
+| --- | --- | --- | --- |
+| [GHSA-wrw7-89jp-8q8g](https://github.com/advisories/GHSA-wrw7-89jp-8q8g), unsound `VariantStrIter` | `glib` 0.18 | Tauri 2 uses GTK, and with it `glib`, only on Linux. The Windows build does not compile it. | Tauri 3, which moves to `glib` 0.20 or later |
+| [RUSTSEC-2024-0370](https://rustsec.org/advisories/RUSTSEC-2024-0370), `proc-macro-error` unmaintained | `proc-macro-error` 1.0 | A build-time macro used only by `glib-macros` 0.18, so it is in the same Linux-only chain. | Tauri 3 |
