@@ -144,6 +144,59 @@ code {
   background: var(--silk-soft) padding-box;
 }
 
+::-webkit-scrollbar-thumb:active {
+  background: var(--silk) padding-box;
+}
+
+::-webkit-scrollbar-thumb:vertical {
+  min-height: 48px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+/* Tooltips: a small glass label under the control, after a pause on hover or at once on keyboard focus. */
+[data-tip] {
+  position: relative;
+}
+
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  z-index: 10;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--glass-solid) 84%, transparent);
+  backdrop-filter: blur(12px) saturate(160%);
+  box-shadow: inset 0 0 0 1px var(--hairline), 0 10px 22px -10px rgb(0 0 0 / 0.55);
+  color: var(--silk);
+  font: 500 12.5px/1.3 var(--font);
+  letter-spacing: 0;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -3px);
+  transition: opacity 120ms ease-out, transform 180ms var(--settle);
+}
+
+[data-tip]:hover::after,
+[data-tip]:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+[data-tip]:hover::after {
+  transition-delay: 500ms;
+}
+
 /* The board */
 
 .filters {
@@ -385,6 +438,7 @@ code {
   overflow-y: auto;
   /* Reserved on both sides, so views of any height keep the same width and stay centered under the bar. */
   scrollbar-gutter: stable both-edges;
+  overscroll-behavior: none;
   padding: 92px 32px 40px;
 }
 
@@ -491,8 +545,38 @@ code {
   gap: 12px 24px;
 }
 
+/* While the last audit loads, each view shows its own shape. */
 .skeleton {
-  height: 300px;
+  display: grid;
+  gap: 16px;
+}
+
+.skeleton i {
+  display: block;
+  height: 14px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--tray) 30%, var(--hairline) 50%, var(--tray) 70%) 0 0 / 300% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+.skeleton .skeleton-title {
+  width: 42%;
+  height: 34px;
+}
+
+.skeleton .skeleton-block {
+  height: 72px;
+  border-radius: var(--r-tray);
+}
+
+.skeleton .skeleton-short {
+  width: 64%;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -150% 0;
+  }
 }
 
 /* Controls */
@@ -1183,6 +1267,7 @@ code {
 
 .sheet-list {
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0 24px;
 }
 
@@ -1520,6 +1605,36 @@ code {
 
   .page {
     padding: 84px 16px 32px;
+  }
+}
+
+/* High contrast: glass gets system-color edges, and risk keeps its colors because they carry meaning. */
+@media (forced-colors: active) {
+  .pane,
+  .bar,
+  .dock,
+  .sheet,
+  [data-tip]::after {
+    border: 1px solid CanvasText;
+  }
+
+  /* The system draws the current tab itself; the sliding droplet would sit under a text backplate. */
+  .tabs-lens {
+    display: none;
+  }
+
+  .tab[aria-current="page"] {
+    forced-color-adjust: none;
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  .tick,
+  .risk-mark,
+  .legend i,
+  .rule-ticks i,
+  .run-ticks i {
+    forced-color-adjust: none;
   }
 }
 

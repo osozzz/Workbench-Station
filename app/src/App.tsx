@@ -93,15 +93,37 @@ export function App() {
               <span>{error}</span>
             </p>
           )}
-          {!error && snapshot === null && view !== "settings" && <div className="pane skeleton" role="status" aria-label="Reading the last audit" />}
+          {!error && snapshot === null && view !== "settings" && <Skeleton view={view} />}
           <div className="view" key={view}>
             {snapshot && view === "overview" && <Overview snapshot={snapshot} run={run} auditing={auditing} onAudit={audit} onOpenUpdates={() => setView("updates")} onError={setError} />}
             {snapshot && view === "updates" && <Updates snapshot={snapshot} busy={run !== null || auditing} onInstall={install} onOpenOverview={() => setView("overview")} />}
-            {snapshot && view === "history" && <History logs={snapshot.logs} />}
+            {snapshot && view === "history" && <History logs={snapshot.logs} onOpenUpdates={() => setView("updates")} />}
             {view === "settings" && <Settings onError={setError} />}
           </div>
         </div>
       </main>
     </>
+  );
+}
+
+/** The shape of each view while the last audit loads. */
+function Skeleton({ view }: { view: View }) {
+  const pane = (key: string, lines: number, opening: "title" | "title-block" | "none") => (
+    <div className="pane skeleton" key={key}>
+      {opening !== "none" && <i className="skeleton-title" />}
+      {Array.from({ length: lines }, (_, index) => <i key={index} className={index % 3 === 2 ? "skeleton-short" : undefined} />)}
+      {opening === "title-block" && <i className="skeleton-block" />}
+    </div>
+  );
+  const panes = {
+    overview: [pane("hero", 1, "title-block"), pane("lists", 4, "none")],
+    updates: [pane("list", 6, "title")],
+    history: [pane("latest", 2, "title"), pane("earlier", 2, "none")],
+    settings: [],
+  }[view];
+  return (
+    <div className="view" role="status" aria-label="Reading the last audit">
+      {panes}
+    </div>
   );
 }

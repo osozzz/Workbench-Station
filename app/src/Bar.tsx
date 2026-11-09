@@ -73,8 +73,8 @@ export function Bar({ host, view, ready, onSelect }: { host: string; view: View;
       </div>
       <nav className="tabs" ref={row} aria-label="Sections">
         <span className="tabs-lens" style={lens} aria-hidden="true" />
-        {tabs.map(({ view: target, label, Icon }) => (
-          <button key={target} className="tab" aria-label={label} title={label} aria-current={view === target ? "page" : undefined} onClick={() => onSelect(target)}>
+        {tabs.map(({ view: target, label, Icon }, index) => (
+          <button key={target} className="tab" aria-label={label} data-tip={`${label} (Ctrl+${index + 1})`} aria-current={view === target ? "page" : undefined} onClick={() => onSelect(target)}>
             <Icon size={18} weight={view === target ? "fill" : "regular"} aria-hidden="true" />
             <span>{label}</span>
             {target === "updates" && ready > 0 && <b>{ready}</b>}
@@ -84,13 +84,13 @@ export function Bar({ host, view, ready, onSelect }: { host: string; view: View;
       <div className="bar-window">
         {inApp && (
           <>
-            <button className="window-button" aria-label="Minimize" onClick={() => void getCurrentWindow().minimize()}>
+            <button className="window-button" aria-label="Minimize" data-tip="Minimize" onClick={() => void getCurrentWindow().minimize()}>
               <Glyph name="minimize" />
             </button>
-            <button className="window-button" aria-label={maximized ? "Restore" : "Maximize"} onClick={() => void getCurrentWindow().toggleMaximize()}>
+            <button className="window-button" aria-label={maximized ? "Restore" : "Maximize"} data-tip={maximized ? "Restore" : "Maximize"} onClick={() => void getCurrentWindow().toggleMaximize()}>
               <Glyph name={maximized ? "restore" : "maximize"} />
             </button>
-            <button className="window-button" data-close aria-label="Close" onClick={() => void getCurrentWindow().close()}>
+            <button className="window-button" data-close aria-label="Close" data-tip="Close" onClick={() => void getCurrentWindow().close()}>
               <Glyph name="close" />
             </button>
           </>

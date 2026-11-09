@@ -26,6 +26,7 @@ export function Command({ text }: { text: string }) {
       <button
         className="command-copy"
         aria-label={copied ? "Copied" : "Copy command"}
+        data-tip={copied ? "Copied" : "Copy command"}
         onClick={() =>
           navigator.clipboard.writeText(text).then(
             () => setCopied(true),

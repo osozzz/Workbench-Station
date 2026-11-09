@@ -106,7 +106,8 @@ export function Overview(props: { snapshot: Snapshot; run: Run | null; auditing:
         <div className="hero-head">
           <div>
             {run ? (
-              <>
+              // Announced as it changes, so a screen reader follows the install without watching it.
+              <div aria-live="polite">
                 <h1 className="headline">{verifying ? "Checking what was installed" : `Installing ${run.total - waiting + 1} of ${run.total}`}</h1>
                 <p className="subline">
                   {verifying
@@ -115,7 +116,7 @@ export function Overview(props: { snapshot: Snapshot; run: Run | null; auditing:
                       ? `${current ? `${current.title}.` : "Starting the next update."} You can keep working; some apps may close while they update.`
                       : "Waiting for Windows to give permission."}
                 </p>
-              </>
+              </div>
             ) : (
               <>
                 <h1 className="headline">{ready.length === 0 ? "Everything that can update is up to date" : `${ready.length} updates ready to install`}</h1>
@@ -232,7 +233,7 @@ function Welcome({ auditing, auditButton, onError }: { auditing: boolean; auditB
                   <li key={folder}>
                     <Folder size={14} aria-hidden="true" />
                     <span>{folder}</span>
-                    <button className="chip-remove" aria-label={`Remove ${folder}`} disabled={auditing} onClick={() => void remove(folder)}>
+                    <button className="chip-remove" aria-label={`Remove ${folder}`} data-tip="Remove folder" disabled={auditing} onClick={() => void remove(folder)}>
                       <X size={12} weight="bold" aria-hidden="true" />
                     </button>
                   </li>
