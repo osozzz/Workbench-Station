@@ -107,7 +107,7 @@ export function Updates({ snapshot, busy, onInstall, onOpenOverview }: { snapsho
                       onChange={() => toggle(action.actionId)}
                     />
                     <button className="update-open" aria-expanded={isFocused} onClick={() => setFocusedId(action.actionId)}>
-                      <i className="risk-mark" data-risk={action.risk} data-manual={action.command === null} title={`${action.risk} risk`} />
+                      <i className="risk-mark" data-risk={action.risk} data-manual={action.command === null} data-tip={`${action.risk[0].toUpperCase()}${action.risk.slice(1)} risk`} />
                       <span className="row-title">{action.title}</span>
                       {versionsOf(action)}
                     </button>

@@ -28,7 +28,7 @@ export function Settings({ onError }: { onError(message: string | null): void })
             <li className="row folder" key={folder}>
               <Folder size={20} aria-hidden="true" />
               <span className="row-title">{folder}</span>
-              <button className="icon-button" aria-label={`Remove ${folder}`} onClick={() => void remove(folder)}>
+              <button className="icon-button" aria-label={`Remove ${folder}`} data-tip="Remove folder" onClick={() => void remove(folder)}>
                 <Trash size={18} aria-hidden="true" />
               </button>
             </li>
