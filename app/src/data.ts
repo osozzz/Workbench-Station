@@ -7,6 +7,7 @@ export interface Action {
   actionId: string;
   kind: string;
   source: { type: string; policyKey: string | null };
+  subjectId: string | null;
   title: string;
   currentVersion: string | null;
   targetVersion: string | null;
@@ -102,6 +103,11 @@ export const refresh = () => invoke<void>("refresh");
 export const runUpdate = (actionIds: string[]) => invoke<void>("update", { actionIds });
 /** Saves the last audit as one Markdown file; resolves to where it was saved, or null if cancelled. */
 export const exportReport = () => invoke<string | null>("export_report");
+/** What changes in one version of a WinGet package, from its manifest in the WinGet catalog. */
+export const releaseNotes = (pkg: string, version: string) =>
+  invoke<{ notes: string | null; url: string | null }>("release_notes", { package: pkg, version });
+/** Opens an https link in the default browser. */
+export const openLink = (url: string) => invoke<void>("open_link", { url });
 
 export const loadFolders = () => (inApp ? invoke<string[]>("read_data", { name: "folders" }) : Promise.resolve<string[]>([]));
 export const saveFolders = (folders: string[]) => invoke<void>("save_folders", { folders });

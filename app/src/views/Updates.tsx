@@ -1,10 +1,46 @@
-import { BookOpenText, SquaresFour, WarningCircle } from "@phosphor-icons/react";
+import { ArrowSquareOut, BookOpenText, Sparkle, SquaresFour, WarningCircle } from "@phosphor-icons/react";
 import { useMemo, useRef, useState } from "react";
-import { ageInHours, inApp, sourceNames, type Action, type Risk, type Snapshot } from "../data";
+import { ageInHours, inApp, openLink, releaseNotes, sourceNames, type Action, type Risk, type Snapshot } from "../data";
 import { guideForAction, type GuideId } from "../guides";
 import { Command, groupBySource, versionsOf } from "../actions";
 
 type Filter = "ready" | "manual" | Risk;
+
+type Notes = { state: "idle" } | { state: "loading" } | { state: "done"; notes: string | null; url: string | null } | { state: "failed"; reason: string };
+
+/** Looked up only when asked, so opening an update never reaches the network on its own. */
+function ReleaseNotes({ pkg, version }: { pkg: string; version: string }) {
+  const [notes, setNotes] = useState<Notes>({ state: "idle" });
+  const load = () => {
+    setNotes({ state: "loading" });
+    releaseNotes(pkg, version).then(
+      (found) => setNotes({ state: "done", ...found }),
+      (reason) => setNotes({ state: "failed", reason: String(reason) }),
+    );
+  };
+
+  if (notes.state === "idle" || notes.state === "loading") {
+    return (
+      <button className="link" disabled={!inApp || notes.state === "loading"} onClick={load}>
+        <Sparkle size={16} aria-hidden="true" />
+        {notes.state === "loading" ? "Looking up what changes…" : `What changes in ${version}`}
+      </button>
+    );
+  }
+  if (notes.state === "failed") return <p className="detail-note" role="status">{notes.reason}</p>;
+  return (
+    <div className="release-notes" role="status">
+      {notes.notes && <p className="release-notes-text">{notes.notes}</p>}
+      {notes.url && (
+        <button className="link" onClick={() => openLink(notes.url!)}>
+          <ArrowSquareOut size={16} aria-hidden="true" />
+          Release notes on {new URL(notes.url).hostname}
+        </button>
+      )}
+      {!notes.notes && !notes.url && <p className="detail-note">The WinGet catalog has no notes for {version}.</p>}
+    </div>
+  );
+}
 
 function ActionDetail({ action, onOpenGuide }: { action: Action; onOpenGuide(id: GuideId): void }) {
   const guide = guideForAction(action);
@@ -19,6 +55,9 @@ function ActionDetail({ action, onOpenGuide }: { action: Action; onOpenGuide(id:
       <p>{action.message}</p>
       {action.command ? <Command text={action.command} /> : <p className="detail-note">This one has no command. You do it yourself.</p>}
       {blocked && <p className="detail-note">High-risk updates do not run from here.</p>}
+      {action.source.type === "winget" && action.subjectId?.startsWith("winget:") && action.targetVersion && (
+        <ReleaseNotes key={action.actionId} pkg={action.subjectId.slice("winget:".length)} version={action.targetVersion} />
+      )}
       {guide && (
         <button className="link" onClick={() => onOpenGuide(guide)}>
           <BookOpenText size={16} aria-hidden="true" />
