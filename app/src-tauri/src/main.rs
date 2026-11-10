@@ -15,6 +15,12 @@ use tauri_plugin_dialog::DialogExt;
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 const PERMISSION_DECLINED: i32 = 1223; // ERROR_CANCELLED
 
+/// A failure the app explains in its own words: a stable code for the message, and the technical detail
+/// people can copy into a report.
+fn failure(code: &str, detail: impl ToString) -> Value {
+    json!({ "code": code, "detail": detail.to_string() })
+}
+
 /// The folder that holds scripts/: the repository in development, the bundle when installed.
 fn root(app: &AppHandle) -> Result<PathBuf, String> {
     if cfg!(debug_assertions) {
@@ -108,9 +114,10 @@ async fn pick_folder(app: AppHandle) -> Result<Option<String>, String> {
 
 /// Audit, evaluation and plan. Read-only, so it runs hidden and without elevation.
 #[tauri::command]
-async fn refresh(app: AppHandle) -> Result<(), String> {
-    let script = root(&app)?.join("scripts").join("Refresh-Workstation.ps1");
-    let data = data_root(&app)?;
+async fn refresh(app: AppHandle) -> Result<(), Value> {
+    let unexpected = |e: String| failure("unexpected", e);
+    let script = root(&app).map_err(unexpected)?.join("scripts").join("Refresh-Workstation.ps1");
+    let data = data_root(&app).map_err(unexpected)?;
     tauri::async_runtime::spawn_blocking(move || {
         // output() also gives the child an empty stdin, so nothing in the audit can wait for input.
         let output = Command::new("powershell.exe")
@@ -120,16 +127,16 @@ async fn refresh(app: AppHandle) -> Result<(), String> {
             .arg(&data)
             .creation_flags(CREATE_NO_WINDOW)
             .output()
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| failure("powershell-unavailable", e))?;
         if output.status.success() {
             Ok(())
         } else {
-            let detail = String::from_utf8_lossy(&output.stderr);
-            Err(format!("The audit did not finish. {}", detail.trim()))
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(failure("audit-failed", format!("Exit code {:?}. {}", output.status.code(), stderr.trim())))
         }
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(|e| failure("unexpected", e))?
 }
 
 /// Action IDs reach a command line, so only the characters the plan contract allows get through.
@@ -139,13 +146,14 @@ fn is_action_id(id: &str) -> bool {
 
 /// Runs the selected actions with one UAC prompt. The script rechecks the plan, the allow-list and the count.
 #[tauri::command]
-async fn update(app: AppHandle, action_ids: Vec<String>) -> Result<(), String> {
+async fn update(app: AppHandle, action_ids: Vec<String>) -> Result<(), Value> {
     if action_ids.is_empty() || !action_ids.iter().all(|id| is_action_id(id)) {
-        return Err("The selection is not valid.".to_string());
+        return Err(failure("invalid-selection", action_ids.join(",")));
     }
-    let data_path = data_root(&app)?;
+    let unexpected = |e: String| failure("unexpected", e);
+    let data_path = data_root(&app).map_err(unexpected)?;
     let quoted = |path: PathBuf| path.display().to_string().replace('\'', "''");
-    let script = quoted(root(&app)?.join("scripts").join("Update-Workstation.ps1"));
+    let script = quoted(root(&app).map_err(unexpected)?.join("scripts").join("Update-Workstation.ps1"));
     let plan = quoted(data_path.join("reports").join("update-plan").join("update-plan.json"));
     let data = quoted(data_path);
     let inner = format!(
@@ -164,15 +172,15 @@ async fn update(app: AppHandle, action_ids: Vec<String>) -> Result<(), String> {
             .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &elevate])
             .creation_flags(CREATE_NO_WINDOW)
             .output()
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| failure("powershell-unavailable", e))?;
         match output.status.code() {
             Some(0) => Ok(()),
-            Some(PERMISSION_DECLINED) => Err("Windows permission was declined, so nothing was installed.".to_string()),
-            _ => Err("The update stopped early. Check History, then audit this PC again.".to_string()),
+            Some(PERMISSION_DECLINED) => Err(failure("permission-declined", "Windows UAC prompt declined.")),
+            code => Err(failure("update-stopped", format!("Exit code {code:?}. {}", String::from_utf8_lossy(&output.stderr).trim()))),
         }
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(|e| failure("unexpected", e))?
 }
 
 fn main() {
@@ -193,6 +201,7 @@ fn main() {
                 .build(),
         )
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             // If the page never runs, the window still appears instead of staying hidden.
             let window = app.get_webview_window("main").expect("the main window exists");
