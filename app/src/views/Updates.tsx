@@ -1,11 +1,13 @@
-import { SquaresFour, WarningCircle } from "@phosphor-icons/react";
+import { BookOpenText, SquaresFour, WarningCircle } from "@phosphor-icons/react";
 import { useMemo, useRef, useState } from "react";
 import { ageInHours, inApp, sourceNames, type Action, type Risk, type Snapshot } from "../data";
+import { guideForAction, type GuideId } from "../guides";
 import { Command, groupBySource, versionsOf } from "../actions";
 
 type Filter = "ready" | "manual" | Risk;
 
-function ActionDetail({ action }: { action: Action }) {
+function ActionDetail({ action, onOpenGuide }: { action: Action; onOpenGuide(id: GuideId): void }) {
+  const guide = guideForAction(action);
   const blocked = action.command !== null && action.risk === "high";
   return (
     <>
@@ -17,16 +19,31 @@ function ActionDetail({ action }: { action: Action }) {
       <p>{action.message}</p>
       {action.command ? <Command text={action.command} /> : <p className="detail-note">This one has no command. You do it yourself.</p>}
       {blocked && <p className="detail-note">High-risk updates do not run from here.</p>}
+      {guide && (
+        <button className="link" onClick={() => onOpenGuide(guide)}>
+          <BookOpenText size={16} aria-hidden="true" />
+          How do I do this?
+        </button>
+      )}
     </>
   );
 }
 
-export function Updates({ snapshot, busy, onInstall, onOpenOverview }: { snapshot: Snapshot; busy: boolean; onInstall(actionIds: string[]): void; onOpenOverview(): void }) {
+export function Updates(props: {
+  snapshot: Snapshot;
+  busy: boolean;
+  preselected: string[];
+  onInstall(actionIds: string[]): void;
+  onOpenOverview(): void;
+  onOpenGuide(id: GuideId): void;
+}) {
+  const { snapshot, busy, preselected, onInstall, onOpenOverview, onOpenGuide } = props;
   const actions = snapshot.plan?.actions ?? [];
   const stale = snapshot.plan ? ageInHours(snapshot.plan.report.generatedAt) > 24 : true;
   const dialog = useRef<HTMLDialogElement>(null);
   const [filter, setFilter] = useState<Filter>("ready");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Retry from History arrives with its updates already chosen; the confirmation still lists them.
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(preselected));
   const [focusedId, setFocusedId] = useState<string | null>(null);
 
   const visible = useMemo(
@@ -111,7 +128,7 @@ export function Updates({ snapshot, busy, onInstall, onOpenOverview }: { snapsho
                       <span className="row-title">{action.title}</span>
                       {versionsOf(action)}
                     </button>
-                    {isFocused && <div className="update-inline"><ActionDetail action={action} /></div>}
+                    {isFocused && <div className="update-inline"><ActionDetail action={action} onOpenGuide={onOpenGuide} /></div>}
                   </div>
                 );
               })}
@@ -123,7 +140,7 @@ export function Updates({ snapshot, busy, onInstall, onOpenOverview }: { snapsho
           <aside className="pane inspector" aria-label="Selected update">
             <h2 className="inspector-title">{focused.title}</h2>
             {versionsOf(focused)}
-            <ActionDetail action={focused} />
+            <ActionDetail action={focused} onOpenGuide={onOpenGuide} />
           </aside>
         )}
       </div>
@@ -138,16 +155,16 @@ export function Updates({ snapshot, busy, onInstall, onOpenOverview }: { snapsho
       </div>
 
       <dialog className="sheet" ref={dialog} aria-labelledby="confirm-title">
-        <h2 className="sheet-title" id="confirm-title">Install {selected.size} updates?</h2>
+        <h2 className="sheet-title" id="confirm-title">Install {selected.size} {selected.size === 1 ? "update" : "updates"}?</h2>
         <ul className="rows sheet-list">
           {chosen.map((action) => (
             <li className="row" key={action.actionId}>
               <span className="row-title">{action.title}</span>
               {versionsOf(action) ?? <span />}
-              <p>
-                {action.risk} risk, {action.reversible ? "can be undone" : "cannot be undone"}
+              <div className="confirm-note">
+                <p>{action.risk} risk, {action.reversible ? "can be undone" : "cannot be undone"}</p>
                 {action.command && <Command text={action.command} />}
-              </p>
+              </div>
             </li>
           ))}
         </ul>
@@ -159,7 +176,7 @@ export function Updates({ snapshot, busy, onInstall, onOpenOverview }: { snapsho
           <p>When it finishes, this PC is audited again to verify the result.</p>
           <form method="dialog" className="sheet-actions">
             <button className="button">Cancel</button>
-            <button className="button button-primary" onClick={() => onInstall([...selected])}>Install {selected.size} updates</button>
+            <button className="button button-primary" onClick={() => onInstall([...selected])}>Install {selected.size} {selected.size === 1 ? "update" : "updates"}</button>
           </form>
         </div>
       </dialog>

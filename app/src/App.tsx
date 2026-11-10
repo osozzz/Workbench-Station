@@ -1,11 +1,13 @@
 import { CaretRight, WarningCircle } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 import { Command } from "./actions";
+import type { GuideId } from "./guides";
 import { describeFailure, inApp, loadLatestLog, loadSnapshot, refresh, runUpdate, type AppError, type RunLog, type Snapshot } from "./data";
 import { getCurrentWindow, ProgressBarStatus, UserAttentionType } from "@tauri-apps/api/window";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import { Bar, viewOrder, type View } from "./Bar";
 import { GlassFilters } from "./glass";
+import { Guides } from "./views/Guides";
 import { History } from "./views/History";
 import { Overview, type Run } from "./views/Overview";
 import { Settings } from "./views/Settings";
@@ -17,6 +19,12 @@ export function App() {
   const [view, setView] = useState<View>("overview");
   const [auditing, setAuditing] = useState(false);
   const [run, setRun] = useState<Run | null>(null);
+  const [guide, setGuide] = useState<GuideId>("how-it-works");
+  const [preselected, setPreselected] = useState<string[]>([]);
+  const openGuide = (id: GuideId) => {
+    setGuide(id);
+    setView("guides");
+  };
 
   const reload = () =>
     loadSnapshot().then(setSnapshot, (reason) =>
@@ -57,6 +65,7 @@ export function App() {
     const total = actionIds.length;
     const appWindow = inApp ? getCurrentWindow() : null;
     setError(null);
+    setPreselected([]);
     setRun({ total, log: null });
     setView("overview");
     // Until Windows gives permission, the taskbar button only shows that something is happening.
@@ -116,7 +125,11 @@ export function App() {
     <>
       <GlassFilters />
       <div className="scene" aria-hidden="true" />
-      <Bar host={plan?.report.host.name ?? "This PC"} view={view} ready={ready} onSelect={setView} />
+      <Bar host={plan?.report.host.name ?? "This PC"} view={view} ready={ready} onSelect={(next) => {
+          setPreselected([]);
+          setView(next);
+        }}
+      />
       <main className="page">
         <div className="page-inner">
           {error && (
@@ -136,11 +149,28 @@ export function App() {
               </div>
             </div>
           )}
-          {!error && snapshot === null && view !== "settings" && <Skeleton view={view} />}
+          {!error && snapshot === null && view !== "settings" && view !== "guides" && <Skeleton view={view} />}
           <div className="view" key={view}>
             {snapshot && view === "overview" && <Overview snapshot={snapshot} run={run} auditing={auditing} onAudit={audit} onOpenUpdates={() => setView("updates")} onError={(message) => setError(message === null ? null : { message })} />}
-            {snapshot && view === "updates" && <Updates snapshot={snapshot} busy={run !== null || auditing} onInstall={install} onOpenOverview={() => setView("overview")} />}
-            {snapshot && view === "history" && <History logs={snapshot.logs} onOpenUpdates={() => setView("updates")} />}
+            {snapshot && view === "updates" && <Updates
+                snapshot={snapshot}
+                busy={run !== null || auditing}
+                preselected={preselected}
+                onInstall={install}
+                onOpenOverview={() => setView("overview")}
+                onOpenGuide={openGuide}
+              />}
+            {snapshot && view === "history" && <History
+                logs={snapshot.logs}
+                retryable={new Set(plan?.actions.filter((a) => a.command !== null && a.risk !== "high").map((a) => a.actionId))}
+                onOpenUpdates={() => setView("updates")}
+                onOpenGuide={openGuide}
+                onRetry={(ids) => {
+                  setPreselected(ids);
+                  setView("updates");
+                }}
+              />}
+            {view === "guides" && <Guides guide={guide} onSelect={setGuide} />}
             {view === "settings" && <Settings onError={(message) => setError(message === null ? null : { message })} />}
           </div>
         </div>
@@ -170,6 +200,7 @@ function Skeleton({ view }: { view: View }) {
     overview: [pane("hero", 1, "title-block"), pane("lists", 4, "none")],
     updates: [pane("list", 6, "title")],
     history: [pane("latest", 2, "title"), pane("earlier", 2, "none")],
+    guides: [],
     settings: [],
   }[view];
   return (
