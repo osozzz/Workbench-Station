@@ -522,14 +522,60 @@ code {
   background: var(--tray);
 }
 
-.notice svg {
+.notice > svg {
   flex: none;
   margin-top: 1px;
   color: var(--copper);
 }
 
-.notice[data-tone="alert"] svg {
+.notice[data-tone="alert"] > svg {
   color: var(--high);
+}
+
+.notice-body {
+  display: grid;
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
+}
+
+.notice summary {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  color: var(--silk-soft);
+  font-size: 14px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.notice summary::-webkit-details-marker {
+  display: none;
+}
+
+.notice summary svg {
+  transition: transform 180ms var(--settle);
+}
+
+.notice details[open] summary svg {
+  transform: rotate(90deg);
+}
+
+.notice summary:hover {
+  color: var(--silk);
+}
+
+.notice details .command {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+/* Long stderr scrolls inside its box instead of stretching the notice. */
+.notice details .command code {
+  max-height: 160px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .empty {
@@ -1250,6 +1296,32 @@ code {
     opacity: 0;
     transform: translateX(32px);
   }
+}
+
+/* The close prompt is short, so it sits in the middle instead of sliding in from the side. */
+.sheet.close-guard {
+  inset: 0;
+  width: min(460px, calc(100vw - 32px));
+  height: fit-content;
+  margin: auto;
+  padding-bottom: 20px;
+}
+
+.sheet.close-guard[open] {
+  grid-template-rows: auto;
+  animation: arrive 320ms var(--settle);
+}
+
+.close-guard p {
+  padding: 0 24px;
+  color: var(--silk-soft);
+}
+
+.close-guard-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 20px 24px 0;
 }
 
 .sheet::backdrop {

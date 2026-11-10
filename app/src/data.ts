@@ -62,6 +62,31 @@ export interface Snapshot {
 
 export const inApp = "__TAURI_INTERNALS__" in window;
 
+/** What the app tells people when something fails: its own words, and the technical part to copy. */
+export interface AppError {
+  message: string;
+  detail?: string;
+}
+
+const failureMessages: Record<string, string> = {
+  "audit-failed": "The audit stopped before it finished. Check that this PC is online, then audit again.",
+  "permission-declined": "Windows permission was declined, so nothing was installed. Install again and choose Yes when Windows asks.",
+  "update-stopped": "The install stopped early. History shows what was installed. Audit this PC again before installing the rest.",
+  "invalid-selection": "That selection can't be installed. Audit this PC again, then choose the updates once more.",
+  "powershell-unavailable": "Windows PowerShell didn't start, so Workbench Station can't audit or install. Check that PowerShell isn't blocked on this PC.",
+  unexpected: "Something unexpected stopped Workbench Station. Copy the details below and report it.",
+};
+
+/** Turns a command's coded failure, or any other error, into an AppError. */
+export function describeFailure(reason: unknown, fallback?: string): AppError {
+  if (reason && typeof reason === "object" && "code" in reason) {
+    const { code, detail } = reason as { code: string; detail?: string };
+    return { message: failureMessages[code] ?? failureMessages.unexpected, detail: detail || undefined };
+  }
+  const text = reason instanceof Error ? reason.message : String(reason);
+  return fallback ? { message: fallback, detail: text } : { message: text };
+}
+
 async function read<T>(name: "plan" | "evaluation" | "logs"): Promise<T> {
   if (inApp) return invoke<T>("read_data", { name });
   const response = await fetch(`/__data/${name}`);

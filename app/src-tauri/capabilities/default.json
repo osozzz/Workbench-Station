@@ -9,6 +9,10 @@
     "core:window:allow-toggle-maximize",
     "core:window:allow-minimize",
     "core:window:allow-close",
-    "core:window:allow-show"
+    "core:window:allow-show",
+    "core:window:allow-set-progress-bar",
+    "core:window:allow-request-user-attention",
+    "core:window:allow-destroy",
+    "notification:default"
   ]
 }

@@ -11,7 +11,7 @@ export function groupBySource(actions: Action[]) {
 }
 
 /** An exact command, shown before it runs, with a button to copy it. */
-export function Command({ text }: { text: string }) {
+export function Command({ text, label = "Copy command" }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   const code = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -25,8 +25,8 @@ export function Command({ text }: { text: string }) {
       <code ref={code}>{text}</code>
       <button
         className="command-copy"
-        aria-label={copied ? "Copied" : "Copy command"}
-        data-tip={copied ? "Copied" : "Copy command"}
+        aria-label={copied ? "Copied" : label}
+        data-tip={copied ? "Copied" : label}
         onClick={() =>
           navigator.clipboard.writeText(text).then(
             () => setCopied(true),
