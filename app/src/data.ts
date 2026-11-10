@@ -100,6 +100,8 @@ export async function loadSnapshot(): Promise<Snapshot> {
 
 export const refresh = () => invoke<void>("refresh");
 export const runUpdate = (actionIds: string[]) => invoke<void>("update", { actionIds });
+/** Saves the last audit as one Markdown file; resolves to where it was saved, or null if cancelled. */
+export const exportReport = () => invoke<string | null>("export_report");
 
 export const loadFolders = () => (inApp ? invoke<string[]>("read_data", { name: "folders" }) : Promise.resolve<string[]>([]));
 export const saveFolders = (folders: string[]) => invoke<void>("save_folders", { folders });
