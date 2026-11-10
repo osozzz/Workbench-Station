@@ -119,7 +119,7 @@ export function Overview(props: { snapshot: Snapshot; run: Run | null; auditing:
               </div>
             ) : (
               <>
-                <h1 className="headline">{ready.length === 0 ? "Everything that can update is up to date" : `${ready.length} updates ready to install`}</h1>
+                <h1 className="headline">{ready.length === 0 ? "Everything that can update is up to date" : `${ready.length} ${ready.length === 1 ? "update" : "updates"} ready to install`}</h1>
                 <p className="subline">
                   {manual.length} more need you. Last audit {describeAge(plan.report.generatedAt)}.
                 </p>

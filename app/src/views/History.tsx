@@ -1,7 +1,15 @@
-import { DownloadSimple } from "@phosphor-icons/react";
+import { ArrowClockwise, BookOpenText, DownloadSimple } from "@phosphor-icons/react";
 import { type RunLog } from "../data";
+import { guideForFailure, type GuideId } from "../guides";
 
-export function History({ logs, onOpenUpdates }: { logs: RunLog[]; onOpenUpdates(): void }) {
+export function History(props: {
+  logs: RunLog[];
+  retryable: Set<string>;
+  onOpenUpdates(): void;
+  onOpenGuide(id: GuideId): void;
+  onRetry(actionIds: string[]): void;
+}) {
+  const { logs, retryable, onOpenUpdates, onOpenGuide, onRetry } = props;
   const runs = logs.filter((log) => log.mode !== "dry-run");
   return (
     <>
@@ -41,6 +49,19 @@ export function History({ logs, onOpenUpdates }: { logs: RunLog[]; onOpenUpdates
                       <span className="row-title">{action.title}</span>
                       <span className="result" data-result="failed">Failed</span>
                       {action.reason && <p>{action.reason}</p>}
+                      <div className="row-actions">
+                        <button className="link" onClick={() => onOpenGuide(guideForFailure(action.reason))}>
+                          <BookOpenText size={16} aria-hidden="true" />
+                          What to do
+                        </button>
+                        {/* Retry only offers what the current list still has; Updates asks to confirm. */}
+                        {retryable.has(action.actionId) && (
+                          <button className="link" onClick={() => onRetry([action.actionId])}>
+                            <ArrowClockwise size={16} aria-hidden="true" />
+                            Retry
+                          </button>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>
