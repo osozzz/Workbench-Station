@@ -1180,6 +1180,24 @@ code {
   overflow-wrap: anywhere;
 }
 
+.release-notes {
+  display: grid;
+  gap: 10px;
+}
+
+.release-notes-text {
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 12px 14px;
+  border-radius: var(--r-tray);
+  background: var(--tray);
+  color: var(--silk-soft);
+  font-size: 14px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .detail-facts {
   display: flex;
   flex-wrap: wrap;

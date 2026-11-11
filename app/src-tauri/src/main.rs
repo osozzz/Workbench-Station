@@ -11,6 +11,7 @@ use std::{
 };
 use tauri::{AppHandle, Manager};
 use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_opener::OpenerExt;
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 const PERMISSION_DECLINED: i32 = 1223; // ERROR_CANCELLED
@@ -190,6 +191,83 @@ async fn export_report(app: AppHandle) -> Result<Option<String>, String> {
     .map_err(|e| e.to_string())?
 }
 
+/// A WinGet package id or version: the characters winget-pkgs uses, and no empty or dot-only path segment.
+fn is_manifest_part(part: &str) -> bool {
+    !part.is_empty()
+        && part.chars().all(|c| c.is_ascii_alphanumeric() || "._+-".contains(c))
+        && part.split('.').all(|segment| !segment.is_empty())
+}
+
+/// A top-level field of a WinGet manifest, plain or as a `|-` block. Manifests are flat enough that this
+/// covers the fields read here.
+fn manifest_field(text: &str, key: &str) -> Option<String> {
+    let mut lines = text.lines();
+    while let Some(line) = lines.next() {
+        let Some(value) = line.strip_prefix(key).and_then(|rest| rest.strip_prefix(':')) else { continue };
+        let value = value.trim();
+        let value = if value.starts_with('|') || value.starts_with('>') {
+            let block: Vec<&str> = lines.take_while(|l| l.trim().is_empty() || l.starts_with(' ')).collect();
+            let indent = block.iter().filter(|l| !l.trim().is_empty()).map(|l| l.len() - l.trim_start().len()).min().unwrap_or(0);
+            block.iter().map(|l| l.get(indent..).unwrap_or("")).collect::<Vec<_>>().join("\n").trim_end().to_string()
+        } else {
+            value.trim_matches(|c| c == '"' || c == '\'').to_string()
+        };
+        return (!value.is_empty()).then_some(value);
+    }
+    None
+}
+
+/// Fetches one file from winget-pkgs with Windows' own curl. Ok(None) means the catalog doesn't have it.
+fn fetch_manifest(path: &str) -> Result<Option<String>, String> {
+    let curl = PathBuf::from(std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into())).join(r"System32\curl.exe");
+    let url = format!("https://raw.githubusercontent.com/microsoft/winget-pkgs/master/manifests/{path}");
+    let output = Command::new(curl)
+        .args(["--fail", "--silent", "--proto", "=https", "--max-time", "15", "--max-filesize", "1000000", &url])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .map_err(|e| e.to_string())?;
+    match output.status.code() {
+        Some(0) => Ok(Some(String::from_utf8_lossy(&output.stdout).into_owned())),
+        Some(22) => Ok(None), // HTTP 404: no manifest for this version
+        code => Err(format!("The WinGet catalog couldn't be reached (curl exit {code:?}).")),
+    }
+}
+
+/// What changes in one version of a WinGet package, read from its manifest in the WinGet catalog:
+/// the notes text and the vendor's release-notes link, each when the manifest has it.
+#[tauri::command]
+async fn release_notes(package: String, version: String) -> Result<Value, String> {
+    if !is_manifest_part(&package) || !is_manifest_part(&version) {
+        return Err(format!("Not a WinGet package: {package} {version}"));
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let first = package[..1].to_ascii_lowercase();
+        let folder = format!("{first}/{}/{version}", package.replace('.', "/"));
+        let empty = json!({ "notes": null, "url": null });
+        let Some(versions) = fetch_manifest(&format!("{folder}/{package}.yaml"))? else { return Ok(empty) };
+        let locale = manifest_field(&versions, "DefaultLocale").filter(|l| is_manifest_part(l)).unwrap_or_else(|| "en-US".into());
+        let Some(manifest) = fetch_manifest(&format!("{folder}/{package}.locale.{locale}.yaml"))? else { return Ok(empty) };
+        let notes = manifest_field(&manifest, "ReleaseNotes").map(|notes| notes.chars().take(6000).collect::<String>());
+        let url = manifest_field(&manifest, "ReleaseNotesUrl").filter(|url| is_web_link(url));
+        Ok(json!({ "notes": notes, "url": url }))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+fn is_web_link(url: &str) -> bool {
+    url.starts_with("https://") && url.len() > 8 && !url.chars().any(|c| c.is_whitespace() || c.is_control())
+}
+
+/// Opens an https link in the default browser; the window itself never navigates away.
+#[tauri::command]
+fn open_link(app: AppHandle, url: String) -> Result<(), String> {
+    if !is_web_link(&url) {
+        return Err(format!("Not a web link: {url}"));
+    }
+    app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
+}
+
 /// Action IDs reach a command line, so only the characters the plan contract allows get through.
 fn is_action_id(id: &str) -> bool {
     !id.is_empty() && id.chars().all(|c| c.is_ascii_alphanumeric() || "._+:-".contains(c))
@@ -253,6 +331,7 @@ fn main() {
         )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // If the page never runs, the window still appears instead of staying hidden.
             let window = app.get_webview_window("main").expect("the main window exists");
@@ -262,7 +341,7 @@ fn main() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![read_data, save_folders, pick_folder, refresh, update, export_report])
+        .invoke_handler(tauri::generate_handler![read_data, save_folders, pick_folder, refresh, update, export_report, release_notes, open_link])
         .run(tauri::generate_context!())
         .expect("the Workbench Station window could not start");
 }
@@ -270,6 +349,27 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn release_notes_come_from_plain_and_block_fields() {
+        let manifest = "PackageName: Git\nReleaseNotes: |-\n  Changes since v2.51\n    - nested\n\n  Bug Fixes\nReleaseNotesUrl: https://github.com/git/tag\n";
+        assert_eq!(manifest_field(manifest, "ReleaseNotes").unwrap(), "Changes since v2.51\n  - nested\n\nBug Fixes");
+        assert_eq!(manifest_field(manifest, "ReleaseNotesUrl").unwrap(), "https://github.com/git/tag");
+        assert_eq!(manifest_field("DefaultLocale: 'en-US'\n", "DefaultLocale").unwrap(), "en-US");
+        assert!(manifest_field(manifest, "Description").is_none());
+    }
+
+    #[test]
+    fn only_catalog_names_and_web_links_get_through() {
+        assert!(is_manifest_part("Python.Python.3.14") && is_manifest_part("4.96.3"));
+        for bad in ["", "..", "a/b", "Git..Git", ".Git", "a b", "x&y"] {
+            assert!(!is_manifest_part(bad), "{bad}");
+        }
+        assert!(is_web_link("https://github.com/x"));
+        for bad in ["http://x", "file:///c:/", "https://", "https://a b", "javascript:alert(1)"] {
+            assert!(!is_web_link(bad), "{bad}");
+        }
+    }
 
     #[test]
     fn the_report_keeps_the_audit_and_adds_what_exists() {
