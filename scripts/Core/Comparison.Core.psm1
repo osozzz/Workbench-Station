@@ -1212,14 +1212,41 @@ function Get-ComparisonWinGetReliablePackageIndex {
         }
 
         $key = $packageId.Trim().ToLowerInvariant()
-        if ($index.ContainsKey($key)) {
-            throw "$Role WinGet '$RecordProperty' evidence contains duplicate reliable packageId '$packageId'."
-        }
-
-        $index[$key] = $record
+        # winget list shows one line per installation (each architecture, each version side by side), so
+        # one package ID's records are compared as one set.
+        $index[$key] = $(if ($index.ContainsKey($key)) { Join-ComparisonWinGetRecord -Existing $index[$key] -Record $record } else { $record })
     }
 
     return $index
+}
+
+function Join-ComparisonWinGetRecord {
+    <#
+    .SYNOPSIS
+    One record for two installations of the same package: each version becomes the ordinal-sorted list of
+    distinct versions ("1.8.6, 1.8.7"). It is reliable only when every record that has it says so.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][ValidateNotNull()][psobject]$Existing,
+        [Parameter(Mandatory)][ValidateNotNull()][psobject]$Record
+    )
+
+    $merged = $Existing.PSObject.Copy()
+    foreach ($name in @('installedVersion', 'availableVersion')) {
+        $flag = "${name}Reliable"
+        $known = @(@($Existing, $Record) | Where-Object { -not [string]::IsNullOrWhiteSpace([string](Get-ComparisonOptionalPropertyValue -InputObject $_ -Name $name)) })
+        if ($known.Count -eq 0) { continue }
+
+        $versions = [System.Collections.Generic.SortedSet[string]]::new([StringComparer]::Ordinal)
+        foreach ($item in $known) {
+            foreach ($version in ([string](Get-ComparisonOptionalPropertyValue -InputObject $item -Name $name) -split ', ')) { [void]$versions.Add($version) }
+        }
+        $reliable = @($known | Where-Object { (Get-ComparisonOptionalPropertyValue -InputObject $_ -Name $flag) -ne $true }).Count -eq 0
+        $merged | Add-Member -NotePropertyName $name -NotePropertyValue (@($versions) -join ', ') -Force
+        $merged | Add-Member -NotePropertyName $flag -NotePropertyValue $reliable -Force
+    }
+    return $merged
 }
 
 function New-ComparisonWinGetPackageIdentityValue {
