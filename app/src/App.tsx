@@ -60,7 +60,7 @@ export function App() {
     }
   };
 
-  const install = async (actionIds: string[]) => {
+  const install = async (actionIds: string[], restorePoint: boolean) => {
     const startedAfter = Date.now();
     const total = actionIds.length;
     const appWindow = inApp ? getCurrentWindow() : null;
@@ -84,7 +84,7 @@ export function App() {
       });
     }, 2000);
     try {
-      await runUpdate(actionIds);
+      await runUpdate(actionIds, restorePoint);
       const log = await loadLatestLog();
       const entries = log && new Date(log.startedAt).getTime() >= startedAfter - 5000 ? log.actions : [];
       if (log && entries.some((a) => a.startedAt)) {

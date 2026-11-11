@@ -72,7 +72,7 @@ export function Updates(props: {
   snapshot: Snapshot;
   busy: boolean;
   preselected: string[];
-  onInstall(actionIds: string[]): void;
+  onInstall(actionIds: string[], restorePoint: boolean): void;
   onOpenOverview(): void;
   onOpenGuide(id: GuideId): void;
 }) {
@@ -84,6 +84,22 @@ export function Updates(props: {
   // Retry from History arrives with its updates already chosen; the confirmation still lists them.
   const [selected, setSelected] = useState<Set<string>>(() => new Set(preselected));
   const [focusedId, setFocusedId] = useState<string | null>(null);
+  // Remembered between installs; storage can be unavailable, and then it starts off.
+  const [restorePoint, setRestorePoint] = useState(() => {
+    try {
+      return localStorage.getItem("restorePoint") === "on";
+    } catch {
+      return false;
+    }
+  });
+  const chooseRestorePoint = (on: boolean) => {
+    setRestorePoint(on);
+    try {
+      localStorage.setItem("restorePoint", on ? "on" : "off");
+    } catch {
+      // Kept for this session only.
+    }
+  };
 
   const visible = useMemo(
     () =>
@@ -213,9 +229,16 @@ export function Updates(props: {
             {chosen.some((a) => a.command?.startsWith("winget")) && " Installing accepts the package and source agreements of the WinGet packages listed."}
           </p>
           <p>When it finishes, this PC is audited again to verify the result.</p>
+          <label className="check">
+            <input type="checkbox" checked={restorePoint} onChange={(e) => chooseRestorePoint(e.target.checked)} />
+            <span>
+              <b>Create a restore point first</b>
+              Lets you take this PC back to how it is now. Windows makes at most one a day and needs System Protection on; if it can't, nothing is installed.
+            </span>
+          </label>
           <form method="dialog" className="sheet-actions">
             <button className="button">Cancel</button>
-            <button className="button button-primary" onClick={() => onInstall([...selected])}>Install {selected.size} {selected.size === 1 ? "update" : "updates"}</button>
+            <button className="button button-primary" onClick={() => onInstall([...selected], restorePoint)}>Install {selected.size} {selected.size === 1 ? "update" : "updates"}</button>
           </form>
         </div>
       </dialog>

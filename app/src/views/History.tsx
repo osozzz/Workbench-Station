@@ -2,6 +2,22 @@ import { ArrowClockwise, BookOpenText, DownloadSimple } from "@phosphor-icons/re
 import { type RunLog } from "../data";
 import { guideForFailure, type GuideId } from "../guides";
 
+function RestorePoint({ point, onOpenGuide }: { point: NonNullable<RunLog["restorePoint"]>; onOpenGuide(id: GuideId): void }) {
+  const at = point.createdAt ? new Date(point.createdAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : null;
+  if (point.result === "created") return <p className="run-restore">A restore point was made{at && ` on ${at}`} before installing.</p>;
+  if (point.result === "recent") return <p className="run-restore">Covered by the restore point Windows made on {at}; it makes at most one a day.</p>;
+  if (point.result === "creating") return <p className="run-restore">The restore point was still being made when this run stopped.</p>;
+  return (
+    <div className="run-restore">
+      <p>{point.reason ?? "Windows could not create a restore point, so nothing was installed."}</p>
+      <button className="link" onClick={() => onOpenGuide("restore-point")}>
+        <BookOpenText size={16} aria-hidden="true" />
+        What to do
+      </button>
+    </div>
+  );
+}
+
 export function History(props: {
   logs: RunLog[];
   retryable: Set<string>;
@@ -42,6 +58,7 @@ export function History(props: {
               <p className="run-counts">
                 <b>{count("succeeded")}</b> installed, <b>{count("failed")}</b> failed, <b>{count("skipped")}</b> skipped
               </p>
+              {log.restorePoint && <RestorePoint point={log.restorePoint} onOpenGuide={onOpenGuide} />}
               {failed.length > 0 && (
                 <ul className="rows">
                   {failed.map((action) => (

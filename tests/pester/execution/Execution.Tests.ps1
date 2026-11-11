@@ -34,7 +34,7 @@ BeforeAll {
     )
 
     function Invoke-TestUpdate {
-        param([string[]]$Action = @(), [string]$Risk = '', [switch]$Apply, [switch]$ConfirmAll, [string]$Typed = '', [scriptblock]$Runner, [bool]$Elevated = $true, [bool]$Answer = $true, [string[]]$Running = @(), [string]$Downloader = 'wininet')
+        param([string[]]$Action = @(), [string]$Risk = '', [switch]$Apply, [switch]$ConfirmAll, [string]$Typed = '', [scriptblock]$Runner, [bool]$Elevated = $true, [bool]$Answer = $true, [string[]]$Running = @(), [string]$Downloader = 'wininet', [switch]$RestorePoint, [string]$Restore = 'created')
         $script:ran = [System.Collections.Generic.List[object]]::new()
         $script:asked = 0
         $runner = if ($Runner) { $Runner } else { { param($Call) $script:ran.Add($Call); [pscustomobject]@{ exitCode = 0; timedOut = $false; found = $true; output = 'ok' } } }
@@ -43,12 +43,16 @@ BeforeAll {
         $script:batchAsked = 0
         $script:running = $Running
         $script:downloader = $Downloader
+        $script:restore = $Restore
+        $script:restoreAsked = 0
+        $script:ranAtRestore = -1
         $elevatedCheck = if ($Elevated) { { $true } } else { { $false } }
-        Invoke-WorkstationUpdate -Plan $script:plan -PolicyDigest $script:digest -Action $Action -Risk $Risk -Apply:$Apply -ConfirmAll:$ConfirmAll `
+        Invoke-WorkstationUpdate -Plan $script:plan -PolicyDigest $script:digest -Action $Action -Risk $Risk -Apply:$Apply -ConfirmAll:$ConfirmAll -RestorePoint:$RestorePoint `
             -LogDirectory (Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))) -Now $script:now `
             -Confirmer { param($Item, $Call) $script:asked++; $script:answer } `
             -BatchConfirmer { param($Count) $script:batchAsked++; $script:typed } -Runner $runner -Elevated $elevatedCheck `
-            -ProcessLister { $script:running } -DownloaderCheck { $script:downloader } 6>$null
+            -ProcessLister { $script:running } -DownloaderCheck { $script:downloader } `
+            -RestorePointCreator { $script:restoreAsked++; $script:ranAtRestore = $script:ran.Count; [pscustomobject]@{ result = $script:restore; reason = $(if ($script:restore -eq 'failed') { 'Windows could not create a restore point: off.' } else { $null }); createdAt = $null } } 6>$null
     }
 }
 
@@ -183,6 +187,37 @@ Describe 'Batch confirmation' {
         Invoke-TestUpdate -Risk medium -ConfirmAll -Typed '3' | Out-Null
         $script:ran.Count | Should -Be 0
         $script:batchAsked | Should -Be 0
+    }
+}
+
+Describe 'Restore point' {
+    It 'creates one after the batch is confirmed and before the first action runs' {
+        $result = Invoke-TestUpdate -Risk medium -Apply -ConfirmAll -Typed '3' -RestorePoint
+        $script:restoreAsked | Should -Be 1
+        $script:ranAtRestore | Should -Be 0
+        $script:ran.Count | Should -Be 3
+        $result.log.restorePoint.result | Should -Be 'created'
+    }
+
+    It 'runs nothing when Windows cannot make one, and says why' {
+        $result = Invoke-TestUpdate -Risk medium -Apply -ConfirmAll -Typed '3' -RestorePoint -Restore 'failed'
+        $script:ran.Count | Should -Be 0
+        $result.log.restorePoint.result | Should -Be 'failed'
+        @($result.log.actions | Where-Object { $_.result -eq 'skipped' -and $_.reason -like 'Windows could not create a restore point*' }) | Should -HaveCount 3
+    }
+
+    It 'goes ahead with the one Windows made in the last 24 hours' {
+        Invoke-TestUpdate -Risk medium -Apply -ConfirmAll -Typed '3' -RestorePoint -Restore 'recent' | Out-Null
+        $script:ran.Count | Should -Be 3
+    }
+
+    It 'is never made for a dry run, an unconfirmed batch, or when not asked for' {
+        Invoke-TestUpdate -Risk medium -ConfirmAll -Typed '3' -RestorePoint | Out-Null
+        $script:restoreAsked | Should -Be 0
+        Invoke-TestUpdate -Risk medium -Apply -ConfirmAll -Typed 'no' -RestorePoint | Out-Null
+        $script:restoreAsked | Should -Be 0
+        Invoke-TestUpdate -Risk medium -Apply -ConfirmAll -Typed '3' | Out-Null
+        $script:restoreAsked | Should -Be 0
     }
 }
 

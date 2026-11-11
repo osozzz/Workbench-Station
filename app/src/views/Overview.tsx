@@ -117,7 +117,9 @@ export function Overview(props: { snapshot: Snapshot; run: Run | null; auditing:
                 <p className="subline">
                   {verifying
                     ? "Auditing this PC again. This takes a few minutes."
-                    : run.log
+                    : run.log?.restorePoint?.result === "creating"
+                      ? "Creating a restore point first. This can take a minute."
+                      : run.log
                       ? `${current ? `${current.title}.` : "Starting the next update."} You can keep working; some apps may close while they update.`
                       : "Waiting for Windows to give permission."}
                 </p>
