@@ -16,6 +16,11 @@ function reportsBridge(): Plugin {
     configureServer(server) {
       server.middlewares.use("/__data/plan", (_req, res) => send(res, join(reports, "update-plan", "update-plan.json")));
       server.middlewares.use("/__data/evaluation", (_req, res) => send(res, join(reports, "evaluation", "evaluation.json")));
+      server.middlewares.use("/__data/holds", (_req, res) => {
+        const config = join(reports, "..", "config", "workstation.local.json");
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify(existsSync(config) ? (JSON.parse(readFileSync(config, "utf8").replace(/^﻿/, "")).updates?.holds ?? []) : []));
+      });
       server.middlewares.use("/__data/logs", (_req, res) => {
         const dir = join(reports, "update-log");
         const names = existsSync(dir) ? readdirSync(dir).filter((n) => n.endsWith(".json")).sort().reverse() : [];

@@ -2,7 +2,9 @@
 param(
     [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$Report,
     [ValidateNotNullOrEmpty()][string]$PolicyPath,
-    [ValidateNotNullOrEmpty()][string]$OutputDirectory
+    [ValidateNotNullOrEmpty()][string]$OutputDirectory,
+    # Holds in updates.holds leave their actions out of the plan.
+    [ValidateNotNullOrEmpty()][string]$LocalConfigurationPath
 )
 
 Set-StrictMode -Version Latest
@@ -15,6 +17,9 @@ Import-Module (Join-Path $PSScriptRoot 'Core\UpdatePlan.Core.psm1') -Force
 # Resolved here, not in param(): Windows PowerShell 5.1 leaves $PSScriptRoot empty in -File defaults.
 if ([string]::IsNullOrWhiteSpace($PolicyPath)) {
     $PolicyPath = Join-Path $PSScriptRoot '..\config\workstation.policy.json'
+}
+if ([string]::IsNullOrWhiteSpace($LocalConfigurationPath)) {
+    $LocalConfigurationPath = Join-Path $PSScriptRoot '..\config\workstation.local.json'
 }
 
 function Read-WorkstationJsonFile {
@@ -48,7 +53,8 @@ finally {
     $sha.Dispose()
 }
 
-$plan = New-WorkstationUpdatePlan -Report $reportObject -Policy $policyObject -PolicyDigest $policyDigest
+$held = Get-WorkstationHeldActionIds -LocalConfigurationPath $LocalConfigurationPath
+$plan = New-WorkstationUpdatePlan -Report $reportObject -Policy $policyObject -PolicyDigest $policyDigest -HeldActionIds $held
 
 if (-not [string]::IsNullOrWhiteSpace($OutputDirectory)) {
     Write-WorkstationUpdatePlanOutputs -Plan $plan -OutputDirectory $OutputDirectory | Out-Null

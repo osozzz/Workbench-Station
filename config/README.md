@@ -27,3 +27,10 @@ Current local-only Git hygiene settings:
 - `git.branchStaleDays`: branch-tip age threshold used by the Git hygiene provider; valid range is 1-3650 days and the default is 90.
 
 A stale branch is an advisory finding based on the tip commit age. Staleness alone never authorizes branch deletion or makes a branch a cleanup candidate.
+
+Update holds:
+
+- `updates.holds`: updates kept out of the update plan, each `{ "actionId": "winget-upgrade:Git.Git", "title": "Upgrade Git", "until": "2026-11-18" }`.
+- `actionId` is the plan action to hold. `until` is the date it comes back (`yyyy-MM-dd`, local time), or `null` to keep the current version until the hold is removed. `title` is only for display.
+- The desktop app writes these from **Updates** ("Remind me in 7 days", "Stay on …", **On hold** > **Resume**). The plan, and so `Update-Workstation.ps1`, leaves held actions out.
+- A hold past its date, or one that can't be read, is ignored.

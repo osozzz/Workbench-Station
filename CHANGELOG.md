@@ -4,6 +4,10 @@ All notable changes to this workstation toolkit are documented here.
 
 ## Unreleased
 
+### Added
+
+- Update holds: an update can wait a week or stay on the installed version. Holds live in `updates.holds` of the local configuration, and the plan leaves held actions out, so the command line, the tray count and the scheduled audit respect them too. In the desktop app, each update offers "Remind me in 7 days" and "Stay on …", and **On hold** lists them with **Resume**.
+
 ### Fixed
 
 - On Windows PowerShell 5.1, a command that finished almost at once could be logged without an exit code, so an update that succeeded could show as failed. The executor now starts commands with `Process.Start`, which keeps the exit code. A prompt still reads end-of-input, and a child process left running still can't hold the action open.

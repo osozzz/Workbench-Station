@@ -79,9 +79,10 @@ Write-Host ''
 Write-Host 'Verifying: auditing the PC again (a few minutes)...'
 Import-Module (Join-Path $PSScriptRoot 'Core\PolicyEvaluation.Core.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Core\UpdatePlan.Core.psm1') -Force
-$audit = & (Join-Path $PSScriptRoot 'Audit-Workstation.ps1') -OutputDirectory (Join-Path $DataDirectory 'reports') -LocalConfigurationPath (Join-Path $DataDirectory 'config\workstation.local.json') -IncludeWingetInventory -PassThru 6>$null
+$localConfiguration = Join-Path $DataDirectory 'config\workstation.local.json'
+$audit = & (Join-Path $PSScriptRoot 'Audit-Workstation.ps1') -OutputDirectory (Join-Path $DataDirectory 'reports') -LocalConfigurationPath $localConfiguration -IncludeWingetInventory -PassThru 6>$null
 $policyObject = ConvertFrom-WorkstationJson -Json (Get-Content -LiteralPath $PolicyPath -Encoding UTF8 -Raw)
-$newPlan = New-WorkstationUpdatePlan -Report $audit.Report -Policy $policyObject -PolicyDigest $policyDigest
+$newPlan = New-WorkstationUpdatePlan -Report $audit.Report -Policy $policyObject -PolicyDigest $policyDigest -HeldActionIds (Get-WorkstationHeldActionIds -LocalConfigurationPath $localConfiguration)
 $planOutputs = Write-WorkstationUpdatePlanOutputs -Plan $newPlan -OutputDirectory (Join-Path (Split-Path -Parent $LogDirectory) 'update-plan')
 
 $verification = Get-ExecutionVerification -Log $result.log -NewPlan $newPlan

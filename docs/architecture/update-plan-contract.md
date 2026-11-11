@@ -48,6 +48,7 @@ Plans are shareable, like evaluation output. They must not contain absolute path
 - Turns each WinGet upgrade with a reliable identity into `winget upgrade --id <packageId> --exact`, and each unpinned outdated Chocolatey package into `choco upgrade <packageId> -y`.
 - Emits commands only when they are unambiguous: WinGet upgrades, `flutter upgrade`, `flutter channel <channel>`, `pnpm add -g <cli>@<version>` for global JavaScript CLIs (the policy's global package manager), installing pnpm, and installing the Python Install Manager. Everything else is manual; a manual runtime upgrade says whether WinGet manages the installation, from the WinGet inventory.
 - Sets an upgrade's risk to `medium` when the major version changes, and to `low` otherwise. Catalog entries set the risk of other actions.
+- Leaves out the actions put on hold in the local configuration (`updates.holds` in `-LocalConfigurationPath`, `config/workstation.local.json` by default; see `config/README.md`). The executor only runs what the plan lists, so a held update can't be selected from the command line or the app. Holds don't change the plan's shape.
 
 Output is byte-identical on Windows PowerShell 5.1 and PowerShell 7.
 

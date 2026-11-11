@@ -56,10 +56,18 @@ export interface RunLog {
   restorePoint?: { result: "creating" | "created" | "recent" | "failed"; reason: string | null; createdAt: string | null };
 }
 
+/** An update kept out of the plan: until the date it comes back (yyyy-MM-dd), or null to keep this version. */
+export interface Hold {
+  actionId: string;
+  title: string;
+  until: string | null;
+}
+
 export interface Snapshot {
   plan: Plan | null;
   evaluation: Evaluation | null;
   logs: RunLog[];
+  holds: Hold[];
 }
 
 export const inApp = "__TAURI_INTERNALS__" in window;
@@ -76,6 +84,7 @@ const failureMessages: Record<string, string> = {
   "update-stopped": "The install stopped early. History shows what was installed. Audit this PC again before installing the rest.",
   "invalid-selection": "That selection can't be installed. Audit this PC again, then choose the updates once more.",
   "powershell-unavailable": "Windows PowerShell didn't start, so Workbench Station can't audit or install. Check that PowerShell isn't blocked on this PC.",
+  "plan-failed": "The change was saved, but the list of updates couldn't be rebuilt. Audit this PC again to refresh it.",
   unexpected: "Something unexpected stopped Workbench Station. Copy the details below and report it.",
 };
 
@@ -89,16 +98,35 @@ export function describeFailure(reason: unknown, fallback?: string): AppError {
   return fallback ? { message: fallback, detail: text } : { message: text };
 }
 
-async function read<T>(name: "plan" | "evaluation" | "logs"): Promise<T> {
+async function read<T>(name: "plan" | "evaluation" | "logs" | "holds"): Promise<T> {
   if (inApp) return invoke<T>("read_data", { name });
   const response = await fetch(`/__data/${name}`);
   return response.json() as Promise<T>;
 }
 
 export async function loadSnapshot(): Promise<Snapshot> {
-  const [plan, evaluation, logs] = await Promise.all([read<Plan | null>("plan"), read<Evaluation | null>("evaluation"), read<RunLog[]>("logs")]);
-  return { plan, evaluation, logs: logs ?? [] };
+  const [plan, evaluation, logs, holds] = await Promise.all([
+    read<Plan | null>("plan"),
+    read<Evaluation | null>("evaluation"),
+    read<RunLog[]>("logs"),
+    read<Hold[] | null>("holds"),
+  ]);
+  return { plan, evaluation, logs: logs ?? [], holds: activeHolds(holds ?? []) };
 }
+
+/** A local calendar date as yyyy-MM-dd, the form update holds use. */
+export function localDate(daysFromToday = 0): string {
+  const date = new Date();
+  date.setDate(date.getDate() + daysFromToday);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** Holds still in force, as the engine reads them: one past its date no longer counts. */
+const activeHolds = (holds: Hold[]) => holds.filter((hold) => hold.until === null || hold.until > localDate());
+
+/** Saves the holds and rebuilds the plan from the last audit, so held updates leave the list. */
+export const saveHolds = (holds: Hold[]) => invoke<void>("save_holds", { holds });
 
 export const refresh = () => invoke<void>("refresh");
 export const runUpdate = (actionIds: string[], restorePoint: boolean) => invoke<void>("update", { actionIds, restorePoint });

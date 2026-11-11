@@ -613,4 +613,39 @@ Describe 'Update plan' {
         $plan.summary.actionCount | Should -Be 0
         , $plan.actions | Should -BeOfType [object[]]
     }
+
+    It 'leaves held updates out of the plan, each until its date' {
+        $config = Join-Path $TestDrive 'workstation.local.json'
+        Set-Content -LiteralPath $config -Encoding UTF8 -Value (@{ schemaVersion = '1.0'; updates = @{ holds = @(
+                    @{ actionId = 'winget-upgrade:Git.Git'; title = 'Upgrade Git.Git'; until = '2026-11-18' }
+                    @{ actionId = 'winget-upgrade:Docker.DockerDesktop'; title = 'Upgrade Docker'; until = $null }
+                    @{ actionId = 'policy:node.defaultTrack'; until = '2026-11-10' }
+                    @{ actionId = 'policy:angular.globalCliTrack'; until = 'next week' }
+                    @{ actionId = 'not an action id'; until = $null }
+                ) } } | ConvertTo-Json -Depth 5)
+
+        $held = Get-WorkstationHeldActionIds -LocalConfigurationPath $config -Today ([DateTime]'2026-11-11')
+        $held | Should -Be @('winget-upgrade:Git.Git', 'winget-upgrade:Docker.DockerDesktop')
+        Get-WorkstationHeldActionIds -LocalConfigurationPath $config -Today ([DateTime]'2026-11-18') | Should -Be @('winget-upgrade:Docker.DockerDesktop')
+
+        $plan = New-WorkstationUpdatePlan -Report $report -Policy (New-TestPolicy) -PolicyDigest $script:digest -HeldActionIds $held
+        $ids = @($plan.actions.actionId)
+        $ids | Should -Not -Contain 'winget-upgrade:Git.Git'
+        $ids | Should -Not -Contain 'winget-upgrade:Docker.DockerDesktop'
+        $ids | Should -Contain 'policy:node.defaultTrack'
+        $ids | Should -Contain 'policy:angular.globalCliTrack'
+        $plan.summary.actionCount | Should -Be ($script:plan.summary.actionCount - 2)
+        $plan.actions[-1].order | Should -Be $plan.actions.Count
+    }
+
+    It 'holds nothing when the local configuration is missing or unreadable' {
+        $none = Get-WorkstationHeldActionIds -LocalConfigurationPath (Join-Path $TestDrive 'missing.json')
+        $none | Should -BeNullOrEmpty
+        # As Plan-WorkstationUpdate.ps1 passes it: no holds arrive as $null.
+        (New-WorkstationUpdatePlan -Report $report -Policy (New-TestPolicy) -PolicyDigest $script:digest -HeldActionIds $none).summary.actionCount | Should -Be $script:plan.summary.actionCount
+        $broken = Join-Path $TestDrive 'broken.json'
+        Set-Content -LiteralPath $broken -Value '{ "updates": '
+        Get-WorkstationHeldActionIds -LocalConfigurationPath $broken -WarningVariable warned -WarningAction SilentlyContinue | Should -BeNullOrEmpty
+        $warned | Should -Not -BeNullOrEmpty
+    }
 }
