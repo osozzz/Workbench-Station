@@ -27,6 +27,10 @@ fn failure(code: &str, detail: impl ToString) -> Value {
     json!({ "code": code, "detail": detail.to_string() })
 }
 
+fn unexpected(detail: impl ToString) -> Value {
+    failure("unexpected", detail)
+}
+
 /// The folder that holds scripts/: the repository in development, the bundle when installed.
 fn root(app: &AppHandle) -> Result<PathBuf, String> {
     if cfg!(debug_assertions) {
@@ -81,11 +85,11 @@ fn read_data(app: AppHandle, name: String) -> Result<Value, String> {
 }
 
 /// Sets the folders the audit may scan and keeps every other setting. A whole drive is too broad, as in the audit.
-fn with_folders(mut config: Value, folders: &[String]) -> Result<Value, String> {
+fn with_folders(mut config: Value, folders: &[String]) -> Result<Value, Value> {
     if let Some(folder) = folders.iter().find(|f| !Path::new(f).is_absolute() || Path::new(f).parent().is_none()) {
-        return Err(format!("{folder} is too broad to scan. Choose a folder inside the drive."));
+        return Err(failure("folder-too-broad", folder));
     }
-    let invalid = || "The project settings file is not valid, so it was not changed.".to_string();
+    let invalid = || failure("settings-invalid", "The local configuration is not a JSON object.");
     config
         .as_object_mut()
         .ok_or_else(invalid)?
@@ -98,16 +102,16 @@ fn with_folders(mut config: Value, folders: &[String]) -> Result<Value, String> 
 }
 
 /// Changes one part of the local configuration. A file that can't be read is left as it is.
-fn update_config(app: &AppHandle, change: impl FnOnce(Value) -> Result<Value, String>) -> Result<(), String> {
-    let path = local_config(app)?;
+fn update_config(app: &AppHandle, change: impl FnOnce(Value) -> Result<Value, Value>) -> Result<(), Value> {
+    let path = local_config(app).map_err(unexpected)?;
     let current = if path.exists() { read_json(&path) } else { json!({ "schemaVersion": "1.0" }) };
-    let text = serde_json::to_string_pretty(&change(current)?).map_err(|e| e.to_string())?;
-    fs::create_dir_all(path.with_file_name("")).map_err(|e| e.to_string())?;
-    fs::write(&path, text).map_err(|e| e.to_string())
+    let text = serde_json::to_string_pretty(&change(current)?).map_err(unexpected)?;
+    fs::create_dir_all(path.with_file_name("")).map_err(unexpected)?;
+    fs::write(&path, text).map_err(unexpected)
 }
 
 #[tauri::command]
-fn save_folders(app: AppHandle, folders: Vec<String>) -> Result<(), String> {
+fn save_folders(app: AppHandle, folders: Vec<String>) -> Result<(), Value> {
     update_config(&app, |config| with_folders(config, &folders))
 }
 
@@ -128,9 +132,9 @@ fn checked_hold(hold: &Value) -> Result<Value, String> {
 }
 
 /// Replaces the update holds and keeps every other setting.
-fn with_holds(mut config: Value, holds: &[Value]) -> Result<Value, String> {
-    let holds = holds.iter().map(checked_hold).collect::<Result<Vec<_>, _>>()?;
-    let invalid = || "The settings file is not valid, so it was not changed.".to_string();
+fn with_holds(mut config: Value, holds: &[Value]) -> Result<Value, Value> {
+    let holds = holds.iter().map(checked_hold).collect::<Result<Vec<_>, _>>().map_err(unexpected)?;
+    let invalid = || failure("settings-invalid", "The local configuration is not a JSON object.");
     config
         .as_object_mut()
         .ok_or_else(invalid)?
@@ -147,7 +151,7 @@ fn with_holds(mut config: Value, holds: &[Value]) -> Result<Value, String> {
 #[tauri::command]
 async fn save_holds(app: AppHandle, holds: Vec<Value>) -> Result<(), Value> {
     let unexpected = |e: String| failure("unexpected", e);
-    update_config(&app, |config| with_holds(config, &holds)).map_err(unexpected)?;
+    update_config(&app, |config| with_holds(config, &holds))?;
     let reports = data_root(&app).map_err(unexpected)?.join("reports");
     let Some(report) = latest_audit_json(&reports) else {
         return Ok(());
@@ -229,14 +233,14 @@ fn latest_audit(reports: &Path) -> Option<PathBuf> {
 
 /// Saves the last audit as one Markdown file where the person chooses. Returns where, or None if cancelled.
 #[tauri::command]
-async fn export_report(app: AppHandle) -> Result<Option<String>, String> {
-    let reports = data_root(&app)?.join("reports");
+async fn export_report(app: AppHandle) -> Result<Option<String>, Value> {
+    let reports = data_root(&app).map_err(unexpected)?.join("reports");
     let Some(audit) = latest_audit(&reports) else {
-        return Err("There's no audit to export yet. Audit this PC first.".to_string());
+        return Err(failure("no-audit", "No audit report in the reports folder."));
     };
     let read = |path: PathBuf| fs::read_to_string(path).ok();
     let report = compose_report(
-        &fs::read_to_string(&audit).map_err(|e| e.to_string())?,
+        &fs::read_to_string(&audit).map_err(unexpected)?,
         read(reports.join("evaluation").join("evaluation.txt")).as_deref(),
         read(reports.join("update-plan").join("update-plan.txt")).as_deref(),
     );
@@ -245,19 +249,19 @@ async fn export_report(app: AppHandle) -> Result<Option<String>, String> {
 }
 
 /// Windows' Save As dialog, then the file. Returns where it was saved, or None if cancelled.
-async fn save_as(app: AppHandle, name: String, kind: &'static str, extension: &'static str, bytes: Vec<u8>) -> Result<Option<String>, String> {
+async fn save_as(app: AppHandle, name: String, kind: &'static str, extension: &'static str, bytes: Vec<u8>) -> Result<Option<String>, Value> {
     tauri::async_runtime::spawn_blocking(move || {
         let mut dialog = app.dialog().file().set_file_name(name).add_filter(kind, &[extension]);
         if let Some(window) = app.get_webview_window("main") {
             dialog = dialog.set_parent(&window);
         }
         let Some(target) = dialog.blocking_save_file() else { return Ok(None) };
-        let target = target.into_path().map_err(|e| e.to_string())?;
-        fs::write(&target, bytes).map_err(|e| e.to_string())?;
+        let target = target.into_path().map_err(unexpected)?;
+        fs::write(&target, bytes).map_err(unexpected)?;
         Ok(Some(target.display().to_string()))
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(unexpected)?
 }
 
 /// The last audit's JSON report, which the audit writes next to its Markdown with the same name.
@@ -267,14 +271,14 @@ fn latest_audit_json(reports: &Path) -> Option<PathBuf> {
 
 /// Saves this PC's last audit as JSON where the person chooses, to compare on another PC.
 #[tauri::command]
-async fn export_audit(app: AppHandle) -> Result<Option<String>, String> {
-    let reports = data_root(&app)?.join("reports");
+async fn export_audit(app: AppHandle) -> Result<Option<String>, Value> {
+    let reports = data_root(&app).map_err(unexpected)?.join("reports");
     let Some(audit) = latest_audit_json(&reports) else {
-        return Err("There's no audit to export yet. Audit this PC first.".to_string());
+        return Err(failure("no-audit", "No audit report in the reports folder."));
     };
-    let bytes = fs::read(&audit).map_err(|e| e.to_string())?;
+    let bytes = fs::read(&audit).map_err(unexpected)?;
     let name = format!("Workbench Station audit {}.json", audit.file_stem().unwrap_or_default().to_string_lossy());
-    save_as(app, name, "Workbench Station audit", "json", bytes).await
+    save_as(app, name, "JSON", "json", bytes).await
 }
 
 /// Compares this PC's last audit with an audit exported on another PC, which the person picks. Read-only.
@@ -289,7 +293,7 @@ async fn compare_with(app: AppHandle) -> Result<Option<Value>, Value> {
     let script = root(&app).map_err(unexpected)?.join("scripts").join("Compare-Workstations.ps1");
     let output = reports.join("comparison");
     tauri::async_runtime::spawn_blocking(move || {
-        let mut picker = app.dialog().file().add_filter("Workbench Station audit", &["json"]);
+        let mut picker = app.dialog().file().add_filter("JSON", &["json"]);
         if let Some(window) = app.get_webview_window("main") {
             picker = picker.set_parent(&window);
         }
@@ -490,14 +494,21 @@ fn show_main(app: &AppHandle) {
     }
 }
 
-/// The notification area icon's tooltip, which says how many updates are ready.
+/// The notification area icon's menu, in the app's language.
+fn tray_menu(app: &AppHandle, open: &str, quit: &str) -> tauri::Result<Menu<tauri::Wry>> {
+    let open = MenuItem::with_id(app, "open", open, true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", quit, true, None::<&str>)?;
+    Menu::with_items(app, &[&open, &quit])
+}
+
+/// The notification area icon's tooltip, which says how many updates are ready, and its menu's labels,
+/// both in the app's language.
 #[tauri::command]
-fn set_tray_status(app: AppHandle, text: String) -> Result<(), String> {
+fn set_tray_status(app: AppHandle, text: String, open: String, quit: String) -> Result<(), String> {
     let text: String = text.chars().take(120).collect(); // Windows cuts tooltips at 128 characters
-    match app.tray_by_id("main") {
-        Some(tray) => tray.set_tooltip(Some(text)).map_err(|e| e.to_string()),
-        None => Ok(()),
-    }
+    let Some(tray) = app.tray_by_id("main") else { return Ok(()) };
+    tray.set_tooltip(Some(text)).map_err(|e| e.to_string())?;
+    tray.set_menu(Some(tray_menu(&app, &open, &quit).map_err(|e| e.to_string())?)).map_err(|e| e.to_string())
 }
 
 /// Action IDs reach a command line, so only the characters the plan contract allows get through.
@@ -569,12 +580,11 @@ fn main() {
         .setup(|app| {
             // The icon in the notification area: a click opens the window; the menu also quits, which
             // matters when closing only hides the window.
-            let open = MenuItem::with_id(app, "open", "Open Workbench Station", true, None::<&str>)?;
-            let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            // English until the page sets the labels in its language.
             TrayIconBuilder::with_id("main")
                 .icon(app.default_window_icon().cloned().expect("the app has an icon"))
                 .tooltip("Workbench Station")
-                .menu(&Menu::with_items(app, &[&open, &quit])?)
+                .menu(&tray_menu(app.handle(), "Open Workbench Station", "Quit")?)
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "open" => show_main(app),

@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { loadFolders, pickFolder, saveFolders } from "./data";
+import { describeFailure, loadFolders, pickFolder, saveFolders, type AppError } from "./data";
 
 /** The project folders the audit may scan, shared by the welcome and Settings. */
-export function useFolders(onError: (message: string | null) => void) {
+export function useFolders(onError: (error: AppError | null) => void) {
   const [folders, setFolders] = useState<string[] | null>(null);
   const [changed, setChanged] = useState(false);
-  const report = (reason: unknown) => onError(String(reason));
+  const report = (reason: unknown) => onError(describeFailure(reason));
 
   useEffect(() => {
     void loadFolders().then(setFolders, report);

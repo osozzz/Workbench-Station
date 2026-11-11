@@ -1,4 +1,6 @@
 import type { Action } from "./data";
+import { guidesEs } from "./guides.es";
+import { language, msg } from "./i18n";
 
 /** A paragraph, numbered steps, a list of terms, or a short aside. */
 export type Block = { text: string } | { steps: string[] } | { terms: [string, string][] } | { aside: string } | { code: string };
@@ -31,10 +33,11 @@ export type GuideId =
   | "restore-point"
   | "other-failure";
 
+/** Titles are translated with t() where they're shown. */
 export const groups: { id: Guide["group"]; title: string }[] = [
-  { id: "start", title: "Getting started" },
-  { id: "needs-you", title: "Updates that need you" },
-  { id: "failed", title: "When an update fails" },
+  { id: "start", title: msg("Getting started") },
+  { id: "needs-you", title: msg("Updates that need you") },
+  { id: "failed", title: msg("When an update fails") },
 ];
 
 export const guides: Guide[] = [
@@ -313,6 +316,9 @@ export const guides: Guide[] = [
 ];
 
 export const guideById = new Map(guides.map((guide) => [guide.id, guide]));
+
+/** A guide in the app's language. The commands and code in it are the same in both. */
+export const localized = (guide: Guide): Guide => (language() === "es" ? { ...guide, ...guidesEs[guide.id] } : guide);
 
 /** The guide for an update the app won't run on its own, or null when it runs from here. */
 export function guideForAction(action: Action): GuideId | null {

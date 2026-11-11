@@ -1,7 +1,8 @@
 import { ArrowRight, Check, FileArrowDown, Folder, FolderPlus, HardDrives, MagnifyingGlass, Prohibit, ShieldCheck, WarningCircle, X } from "@phosphor-icons/react";
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { ageInHours, describeAge, exportReport, inApp, sourceNames, type Action, type ActionResult, type LogAction, type RunLog, type Snapshot } from "../data";
-import { groupBySource, versionsOf } from "../actions";
+import { ageInHours, describeFailure, exportReport, inApp, sourceName, type Action, type ActionResult, type AppError, type LogAction, type RunLog, type Snapshot } from "../data";
+import { groupBySource, riskLabel, versionsOf } from "../actions";
+import { describeAge, msg, t, tn } from "../i18n";
 import { useFolders } from "../folders";
 
 export interface Run {
@@ -33,34 +34,34 @@ function Strip({ actions, log }: { actions: Action[]; log: RunLog | null }) {
                   data-risk={action.risk}
                   data-manual={action.command === null}
                   data-state={tickState(entries.get(action.actionId))}
-                  aria-label={`${action.title}, ${action.risk} risk`}
+                  aria-label={`${action.title}, ${riskLabel(action.risk)}`}
                   onMouseEnter={() => setFocused(action)}
                   onFocus={() => setFocused(action)}
                 />
               ))}
             </div>
             <div className="strip-label">
-              <b>{items.length}</b> <span>{sourceNames[source] ?? source}</span>
+              <b>{items.length}</b> <span>{sourceName(source)}</span>
             </div>
           </div>
         ))}
       </div>
       <div className="strip-foot">
         <p className="tick-detail" aria-live="polite">
-          {focused ? focused.title : "Each mark is one update. Hover over a mark to see which."}
+          {focused ? focused.title : t("Each mark is one update. Hover over a mark to see which.")}
         </p>
         <div className="legend">
-          <span><i data-risk="low" />Low risk</span>
-          <span><i data-risk="medium" />Medium risk</span>
-          <span><i data-risk="high" />High risk</span>
-          <span><i data-manual="true" />Needs you</span>
+          <span><i data-risk="low" />{riskLabel("low")}</span>
+          <span><i data-risk="medium" />{riskLabel("medium")}</span>
+          <span><i data-risk="high" />{riskLabel("high")}</span>
+          <span><i data-manual="true" />{t("Needs you")}</span>
         </div>
       </div>
     </>
   );
 }
 
-const resultLabels: Record<ActionResult, string> = { succeeded: "Installed", failed: "Failed", skipped: "Skipped", "not-run": "Waiting" };
+const resultLabels: Record<ActionResult, string> = { succeeded: msg("Installed"), failed: msg("Failed"), skipped: msg("Skipped"), "not-run": msg("Waiting") };
 
 function RunRows({ log }: { log: RunLog }) {
   return (
@@ -70,7 +71,7 @@ function RunRows({ log }: { log: RunLog }) {
           <li className="row" key={action.actionId}>
             <span className="row-title">{action.title}</span>
             <span className="result" data-result={action.startedAt && !action.finishedAt ? "running" : action.result}>
-              {action.startedAt && !action.finishedAt ? "Installing" : resultLabels[action.result]}
+              {action.startedAt && !action.finishedAt ? t("Installing") : t(resultLabels[action.result])}
             </span>
             {action.reason && action.result !== "succeeded" && <p>{action.reason}</p>}
           </li>
@@ -80,18 +81,18 @@ function RunRows({ log }: { log: RunLog }) {
   );
 }
 
-export function Overview(props: { snapshot: Snapshot; run: Run | null; auditing: boolean; onAudit(): void; onOpenUpdates(): void; onError(message: string | null): void }) {
+export function Overview(props: { snapshot: Snapshot; run: Run | null; auditing: boolean; onAudit(): void; onOpenUpdates(): void; onError(error: AppError | null): void }) {
   const { snapshot, run, auditing, onAudit, onOpenUpdates, onError } = props;
   const { plan, evaluation } = snapshot;
   const [savedTo, setSavedTo] = useState<string | null>(null);
   const saveReport = () => {
     onError(null);
-    exportReport().then((path) => path && setSavedTo(path), (reason) => onError(String(reason)));
+    exportReport().then((path) => path && setSavedTo(path), (reason) => onError(describeFailure(reason)));
   };
   const auditButton = (primary: boolean) => (
     <button className={primary ? "button button-primary" : "button"} disabled={!inApp || auditing || run !== null} onClick={onAudit}>
       <MagnifyingGlass size={18} aria-hidden="true" />
-      {auditing ? "Auditing, this takes a few minutes" : "Audit this PC"}
+      {auditing ? t("Auditing, this takes a few minutes") : t("Audit this PC")}
     </button>
   );
   if (!plan) return <Welcome auditing={auditing} auditButton={auditButton(true)} onError={onError} />;
@@ -113,35 +114,35 @@ export function Overview(props: { snapshot: Snapshot; run: Run | null; auditing:
             {run ? (
               // Announced as it changes, so a screen reader follows the install without watching it.
               <div aria-live="polite">
-                <h1 className="headline">{verifying ? "Checking what was installed" : `Installing ${run.total - waiting + 1} of ${run.total}`}</h1>
+                <h1 className="headline">{verifying ? t("Checking what was installed") : t("Installing {current} of {total}", { current: run.total - waiting + 1, total: run.total })}</h1>
                 <p className="subline">
                   {verifying
-                    ? "Auditing this PC again. This takes a few minutes."
+                    ? t("Auditing this PC again. This takes a few minutes.")
                     : run.log?.restorePoint?.result === "creating"
-                      ? "Creating a restore point first. This can take a minute."
+                      ? t("Creating a restore point first. This can take a minute.")
                       : run.log
-                      ? `${current ? `${current.title}.` : "Starting the next update."} You can keep working; some apps may close while they update.`
-                      : "Waiting for Windows to give permission."}
+                      ? `${current ? `${current.title}.` : t("Starting the next update.")} ${t("You can keep working; some apps may close while they update.")}`
+                      : t("Waiting for Windows to give permission.")}
                 </p>
               </div>
             ) : (
               <>
-                <h1 className="headline">{ready.length === 0 ? "Everything that can update is up to date" : `${ready.length} ${ready.length === 1 ? "update" : "updates"} ready to install`}</h1>
+                <h1 className="headline">{ready.length === 0 ? t("Everything that can update is up to date") : tn(ready.length, "{n} update ready to install", "{n} updates ready to install")}</h1>
                 <p className="subline">
-                  {manual.length} more need you. Last audit {describeAge(plan.report.generatedAt)}.
+                  {tn(manual.length, "{n} more needs you.", "{n} more need you.")} {t("Last audit {age}.", { age: describeAge(plan.report.generatedAt) })}
                 </p>
               </>
             )}
           </div>
           {!run && (
             <div className="hero-actions">
-              <button className="icon-button" aria-label="Export report" data-tip="Export report" disabled={!inApp} onClick={saveReport}>
+              <button className="icon-button" aria-label={t("Export report")} data-tip={t("Export report")} disabled={!inApp} onClick={saveReport}>
                 <FileArrowDown size={20} aria-hidden="true" />
               </button>
               {auditButton(stale)}
               {ready.length > 0 && !stale && (
                 <button className="button button-primary" onClick={onOpenUpdates}>
-                  Review updates
+                  {t("Review updates")}
                   <span className="button-island"><ArrowRight size={14} weight="bold" aria-hidden="true" /></span>
                 </button>
               )}
@@ -153,7 +154,7 @@ export function Overview(props: { snapshot: Snapshot; run: Run | null; auditing:
           <p className="notice">
             <Check size={20} aria-hidden="true" />
             <span>
-              Report saved to {savedTo}. It includes this PC's name, its apps and versions, and folder paths, so share it only with people you trust.
+              {t("Report saved to {path}. It includes this PC's name, its apps and versions, and folder paths, so share it only with people you trust.", { path: savedTo })}
             </span>
           </p>
         )}
@@ -161,14 +162,14 @@ export function Overview(props: { snapshot: Snapshot; run: Run | null; auditing:
         {stale && !run && (
           <p className="notice">
             <WarningCircle size={20} aria-hidden="true" />
-            <span>This list is more than a day old, so updates are locked until you audit again.</span>
+            <span>{t("This list is more than a day old, so updates are locked until you audit again.")}</span>
           </p>
         )}
 
         {run?.log?.preflight?.blockingApps.length ? (
           <p className="notice">
             <WarningCircle size={20} aria-hidden="true" />
-            <span>Close these apps, or their updates will fail: {run.log.preflight.blockingApps.map((b) => b.app).join(", ")}.</span>
+            <span>{t("Close these apps, or their updates will fail: {apps}.", { apps: run.log.preflight.blockingApps.map((b) => b.app).join(", ") })}</span>
           </p>
         ) : null}
 
@@ -181,8 +182,8 @@ export function Overview(props: { snapshot: Snapshot; run: Run | null; auditing:
         <div className="bento">
           <section className="pane">
             <div className="pane-head">
-              <h2 className="section-title">Needs you</h2>
-              {manual.length > 6 && <button className="link" onClick={onOpenUpdates}>See all {manual.length}</button>}
+              <h2 className="section-title">{t("Needs you")}</h2>
+              {manual.length > 6 && <button className="link" onClick={onOpenUpdates}>{t("See all {n}", { n: manual.length })}</button>}
             </div>
             <ul className="rows">
               {manual.slice(0, 6).map((action) => (
@@ -192,15 +193,15 @@ export function Overview(props: { snapshot: Snapshot; run: Run | null; auditing:
                 </li>
               ))}
             </ul>
-            {manual.length === 0 && <p className="empty">Nothing needs you right now.</p>}
+            {manual.length === 0 && <p className="empty">{t("Nothing needs you right now.")}</p>}
           </section>
           <section className="pane">
-            <h2 className="section-title">Your standard</h2>
+            <h2 className="section-title">{t("Your standard")}</h2>
             {evaluation ? (
               <>
                 <div className="score">
                   <strong>{evaluation.summary.compliantCount}</strong>
-                  <span>rules met, {evaluation.summary.deviationCount} not met</span>
+                  <span>{tn(evaluation.summary.compliantCount, "rule met, {missing} not met", "rules met, {missing} not met", { missing: evaluation.summary.deviationCount })}</span>
                 </div>
                 <div className="rule-ticks" aria-hidden="true">
                   {Array.from({ length: evaluation.summary.compliantCount }, (_, i) => <i key={`met-${i}`} data-met="true" />)}
@@ -215,7 +216,7 @@ export function Overview(props: { snapshot: Snapshot; run: Run | null; auditing:
                 </ul>
               </>
             ) : (
-              <p className="empty">Audit this PC to compare it with your standard.</p>
+              <p className="empty">{t("Audit this PC to compare it with your standard.")}</p>
             )}
           </section>
         </div>
@@ -225,34 +226,34 @@ export function Overview(props: { snapshot: Snapshot; run: Run | null; auditing:
 }
 
 /** First run: what the app does and never does, then the three steps to a first install. */
-function Welcome({ auditing, auditButton, onError }: { auditing: boolean; auditButton: ReactNode; onError(message: string | null): void }) {
+function Welcome({ auditing, auditButton, onError }: { auditing: boolean; auditButton: ReactNode; onError(error: AppError | null): void }) {
   const { folders, add, remove } = useFolders(onError);
   const chosen = (folders?.length ?? 0) > 0;
   return (
     <section className="pane welcome" data-scanning={auditing || undefined}>
       <div className="welcome-intro">
         <span className="app-mark app-mark-large" aria-hidden="true" />
-        <h1 className="headline">Keep this PC up to date</h1>
-        <p className="subline">Workbench Station finds what can be updated on this PC, shows how risky each update is, and installs only what you confirm.</p>
+        <h1 className="headline">{t("Keep this PC up to date")}</h1>
+        <p className="subline">{t("Workbench Station finds what can be updated on this PC, shows how risky each update is, and installs only what you confirm.")}</p>
         <ul className="promises">
-          <li><ShieldCheck size={20} aria-hidden="true" />Nothing is installed until you confirm it.</li>
-          <li><Prohibit size={20} aria-hidden="true" />High-risk and manual updates never run from here.</li>
-          <li><HardDrives size={20} aria-hidden="true" />Reports stay on this PC.</li>
+          <li><ShieldCheck size={20} aria-hidden="true" />{t("Nothing is installed until you confirm it.")}</li>
+          <li><Prohibit size={20} aria-hidden="true" />{t("High-risk and manual updates never run from here.")}</li>
+          <li><HardDrives size={20} aria-hidden="true" />{t("Reports stay on this PC.")}</li>
         </ul>
       </div>
       <ol className="steps">
         <li className="step" data-done={chosen || undefined}>
-          <span className="step-mark">{chosen ? <Check size={16} weight="bold" aria-label="Done" /> : "1"}</span>
+          <span className="step-mark">{chosen ? <Check size={16} weight="bold" aria-label={t("Done")} /> : "1"}</span>
           <div className="step-body">
-            <h2 className="section-title">Choose your project folders</h2>
-            <p>Optional. The audit looks for projects and Git repositories only in these folders, never across a whole drive.</p>
+            <h2 className="section-title">{t("Choose your project folders")}</h2>
+            <p>{t("Optional. The audit looks for projects and Git repositories only in these folders, never across a whole drive.")}</p>
             {chosen && (
               <ul className="folder-chips">
                 {folders!.map((folder) => (
                   <li key={folder}>
                     <Folder size={14} aria-hidden="true" />
                     <span>{folder}</span>
-                    <button className="chip-remove" aria-label={`Remove ${folder}`} data-tip="Remove folder" disabled={auditing} onClick={() => void remove(folder)}>
+                    <button className="chip-remove" aria-label={t("Remove {folder}", { folder })} data-tip={t("Remove folder")} disabled={auditing} onClick={() => void remove(folder)}>
                       <X size={12} weight="bold" aria-hidden="true" />
                     </button>
                   </li>
@@ -262,7 +263,7 @@ function Welcome({ auditing, auditButton, onError }: { auditing: boolean; auditB
             <div>
               <button className="button" disabled={!inApp || folders === null || auditing} onClick={() => void add()}>
                 <FolderPlus size={18} aria-hidden="true" />
-                {chosen ? "Add another folder" : "Add folder"}
+                {chosen ? t("Add another folder") : t("Add folder")}
               </button>
             </div>
           </div>
@@ -270,16 +271,16 @@ function Welcome({ auditing, auditButton, onError }: { auditing: boolean; auditB
         <li className="step">
           <span className="step-mark">2</span>
           <div className="step-body">
-            <h2 className="section-title">Audit this PC</h2>
-            <p>Reads the apps, tools, and settings on this PC and checks online for newer versions. It changes nothing and takes about three minutes.</p>
+            <h2 className="section-title">{t("Audit this PC")}</h2>
+            <p>{t("Reads the apps, tools, and settings on this PC and checks online for newer versions. It changes nothing and takes about three minutes.")}</p>
             <div>{auditButton}</div>
           </div>
         </li>
         <li className="step">
           <span className="step-mark">3</span>
           <div className="step-body">
-            <h2 className="section-title">Review and install</h2>
-            <p>Pick the updates you want and see the exact command for each one first. Windows asks for permission once, then this PC is audited again to check the result.</p>
+            <h2 className="section-title">{t("Review and install")}</h2>
+            <p>{t("Pick the updates you want and see the exact command for each one first. Windows asks for permission once, then this PC is audited again to check the result.")}</p>
           </div>
         </li>
       </ol>

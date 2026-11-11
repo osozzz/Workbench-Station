@@ -1,6 +1,7 @@
 import { Info } from "@phosphor-icons/react";
 import { Command } from "../actions";
-import { guideById, groups, guides, type Block, type GuideId } from "../guides";
+import { guideById, groups, guides, localized, type Block, type GuideId } from "../guides";
+import { t } from "../i18n";
 
 function GuideBlock({ block }: { block: Block }) {
   if ("text" in block) return <p>{block.text}</p>;
@@ -23,7 +24,7 @@ function GuideBlock({ block }: { block: Block }) {
         ))}
       </dl>
     );
-  if ("code" in block) return <Command text={block.code} label="Copy" />;
+  if ("code" in block) return <Command text={block.code} label={t("Copy")} />;
   return (
     <p className="notice">
       <Info size={20} aria-hidden="true" />
@@ -34,24 +35,24 @@ function GuideBlock({ block }: { block: Block }) {
 
 /** Local how-tos: the basics, the updates that need you, and what to do when one fails. */
 export function Guides({ guide, onSelect }: { guide: GuideId; onSelect(id: GuideId): void }) {
-  const current = guideById.get(guide) ?? guides[0];
+  const current = localized(guideById.get(guide) ?? guides[0]);
   return (
     <>
       <div className="page-head">
-        <h1 className="page-title">Guides</h1>
+        <h1 className="page-title">{t("Guides")}</h1>
       </div>
       <div className="guides">
-        <nav className="pane guide-nav" aria-label="Guides">
+        <nav className="pane guide-nav" aria-label={t("Guides")}>
           {groups.map((group) => (
             <div className="guide-group" key={group.id}>
-              <h2 className="group-title">{group.title}</h2>
+              <h2 className="group-title">{t(group.title)}</h2>
               <ul>
                 {guides
                   .filter((item) => item.group === group.id)
                   .map((item) => (
                     <li key={item.id}>
                       <button className="guide-link" aria-current={item.id === current.id ? "page" : undefined} onClick={() => onSelect(item.id)}>
-                        {item.title}
+                        {localized(item).title}
                       </button>
                     </li>
                   ))}

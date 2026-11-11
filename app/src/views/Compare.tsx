@@ -1,47 +1,55 @@
 import { ArrowsLeftRight, Check, Export } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
-import { compareWith, describeAge, describeFailure, exportAudit, inApp, loadComparison, type AppError, type Comparison, type Difference } from "../data";
+import { compareWith, describeFailure, exportAudit, inApp, loadComparison, type AppError, type Comparison, type Difference } from "../data";
+import { describeAge, msg, rich, t, tn } from "../i18n";
 
 const categories: [string, string][] = [
-  ["application", "Apps"],
-  ["component", "Tools"],
-  ["version", "Versions"],
+  ["application", msg("Apps")],
+  ["component", msg("Tools")],
+  ["version", msg("Versions")],
   ["path", "PATH"],
-  ["environment", "Environment variables"],
-  ["project", "Projects"],
-  ["git", "Git repositories"],
-  ["provider", "Checks"],
+  ["environment", msg("Environment variables")],
+  ["project", msg("Projects")],
+  ["git", msg("Git repositories")],
+  ["provider", msg("Checks")],
 ];
 
 const kinds: Record<string, string> = {
-  presence: "Installed",
-  "installed-version": "Installed version",
-  "available-version": "Update available",
-  "upgrade-availability": "Has an update",
-  "upgrade-status": "Update check",
-  "inventory-status": "App list",
-  "command-resolution": "Command found",
-  installation: "Copy installed",
-  state: "State",
-  status: "Check result",
-  "active-version": "Version in use",
-  "discovered-version": "Copy found",
-  "latest-stable": "Latest stable release",
-  "latest-current": "Latest current release",
-  "latest-lts": "Latest LTS release",
-  "intelligence-status": "Latest-version check",
-  "allowlisted-variable": "Value",
-  "scope-health": "Entries",
-  "scope-order": "Order",
-  "duplicate-entries": "Repeated entries",
-  "missing-entries": "Folders that don't exist",
-  "persistent-cross-scope-duplicates": "Entries in both machine and user PATH",
-  "command-precedence": "Which copy runs",
-  "branch-hygiene": "Branches",
-  "branch-upstream": "Current branch",
-  divergence: "Ahead or behind",
-  "worktree-state": "Uncommitted changes",
-  "inspection-state": "Could be read",
+  presence: msg("Installed"),
+  "installed-version": msg("Installed version"),
+  "available-version": msg("Update available"),
+  "upgrade-availability": msg("Has an update"),
+  "upgrade-status": msg("Update check"),
+  "inventory-status": msg("App list"),
+  "command-resolution": msg("Command found"),
+  installation: msg("Copy installed"),
+  state: msg("State"),
+  status: msg("Check result"),
+  "active-version": msg("Version in use"),
+  "discovered-version": msg("Copy found"),
+  "latest-stable": msg("Latest stable release"),
+  "latest-current": msg("Latest current release"),
+  "latest-lts": msg("Latest LTS release"),
+  "intelligence-status": msg("Latest-version check"),
+  "allowlisted-variable": msg("Value"),
+  "scope-health": msg("Entries"),
+  "scope-order": msg("Order"),
+  "duplicate-entries": msg("Repeated entries"),
+  "missing-entries": msg("Folders that don't exist"),
+  "persistent-cross-scope-duplicates": msg("Entries in both machine and user PATH"),
+  "command-precedence": msg("Which copy runs"),
+  "branch-hygiene": msg("Branches"),
+  "branch-upstream": msg("Current branch"),
+  divergence: msg("Ahead or behind"),
+  "worktree-state": msg("Uncommitted changes"),
+  "inspection-state": msg("Could be read"),
+};
+
+const pathScopes: Record<string, string> = {
+  machine: msg("Machine PATH"),
+  user: msg("User PATH"),
+  process: msg("Process PATH"),
+  "machine-user": msg("Machine and user PATH"),
 };
 
 type Filter = "all" | "reference-only" | "target-only" | "different";
@@ -55,31 +63,32 @@ function subjectOf(d: Difference): string {
   const subject = d.subjectId ?? "";
   for (const prefix of ["winget-package:", "path-precedence.command."]) if (subject.startsWith(prefix)) return subject.slice(prefix.length);
   if (d.category === "environment") return subject.toUpperCase();
-  if (d.category === "path") return `${subject.replace("-", " and ")} PATH`;
-  if (d.category === "git") return "A Git repository";
+  if (d.category === "path") return pathScopes[subject] ? t(pathScopes[subject]) : `${subject} PATH`;
+  if (d.category === "git") return t("A Git repository");
   return d.componentId ?? d.providerId;
 }
 
 /** One side's value in a few words, or null when it is an object with nothing to name it by. */
 function shown(value: unknown): string | null {
   if (value === null || value === undefined) return null;
-  if (!isRecord(value)) return Array.isArray(value) ? `${value.length} ${value.length === 1 ? "entry" : "entries"}` : String(value);
+  if (!isRecord(value)) return Array.isArray(value) ? tn(value.length, "{n} entry", "{n} entries") : String(value);
   const version = isRecord(value.version) && typeof value.version.value === "string" ? value.version.value : null;
-  if (version) return typeof value.path === "string" ? `${version} at ${value.path}` : version;
+  if (version) return typeof value.path === "string" ? t("{version} at {path}", { version, path: value.path }) : version;
   // Which copy of a command runs: the folder it comes from.
   if (isRecord(value.activeResolution) && typeof value.activeResolution.pathKey === "string") return value.activeResolution.pathKey;
   for (const key of ["value", "name", "packageId", "branchHead", "command"]) if (typeof value[key] === "string") return value[key] as string;
   return null;
 }
 
-/** For two objects, the plain fields that differ, nested ones included, as "branch count: 3 → 10". */
+/** For two objects, the plain fields that differ, nested ones included, as "branch count: 3 → 10". The
+ * field names are the engine's, so they stay in English. */
 function changedFields(a: unknown, b: unknown, path = ""): string[] {
   if (!isRecord(a) || !isRecord(b)) return [];
   const plain = (v: unknown) => v === null || v === undefined || typeof v !== "object";
   const words = (key: string) => key.replace(/([A-Z])/g, " $1").toLowerCase();
   return [...new Set([...Object.keys(a), ...Object.keys(b)])].flatMap((key) => {
     const name = `${path}${words(key)}`;
-    if (plain(a[key]) && plain(b[key])) return a[key] === b[key] ? [] : [`${name}: ${String(a[key] ?? "none")} → ${String(b[key] ?? "none")}`];
+    if (plain(a[key]) && plain(b[key])) return a[key] === b[key] ? [] : [`${name}: ${String(a[key] ?? t("none"))} → ${String(b[key] ?? t("none"))}`];
     return changedFields(a[key], b[key], `${name} `);
   });
 }
@@ -92,7 +101,7 @@ function Detail({ d, other }: { d: Difference; other: string }) {
   const sides = (a: string | null, b: string | null) =>
     a === null && b === null ? null : (
       <p className="compare-detail">
-        {a !== null && <span>This PC: {a}</span>}
+        {a !== null && <span>{t("This PC: {value}", { value: a })}</span>}
         {b !== null && <span>{other}: {b}</span>}
       </p>
     );
@@ -137,7 +146,7 @@ export function Compare() {
     }
   };
 
-  const other = comparison?.target.host.name ?? "the other PC";
+  const other = comparison?.target.host.name ?? t("the other PC");
   const groups = useMemo(() => {
     const shownDifferences = (comparison?.differences ?? []).filter((d) => filter === "all" || d.relation === filter);
     return categories
@@ -150,21 +159,23 @@ export function Compare() {
   }, [comparison, filter]);
 
   const relationText: Record<string, string> = {
-    "reference-only": "Only on this PC",
-    "target-only": `Only on ${other}`,
-    different: "Different",
-    unknown: "Unknown on one PC",
-    unavailable: "Not checked on one PC",
-    "not-applicable": "Doesn't apply on one PC",
+    "reference-only": t("Only on this PC"),
+    "target-only": t("Only on {other}", { other }),
+    different: t("Different"),
+    unknown: t("Unknown on one PC"),
+    unavailable: t("Not checked on one PC"),
+    "not-applicable": t("Doesn't apply on one PC"),
   };
-  const filters: [Filter, string][] = [["all", "All"], ["reference-only", "Only here"], ["target-only", "Only there"], ["different", "Different"]];
+  const filters: [Filter, string][] = [["all", t("All")], ["reference-only", t("Only here")], ["target-only", t("Only there")], ["different", t("Different")]];
+  const count = comparison?.summary.differenceCount ?? 0;
+  const names = { here: <b>{t("This PC")}</b>, there: <b>{other}</b> };
 
   return (
     <>
       <div className="page-head">
-        <h1 className="page-title">Compare</h1>
+        <h1 className="page-title">{t("Compare")}</h1>
         {comparison && (
-          <div className="segments" role="group" aria-label="Filter differences">
+          <div className="segments" role="group" aria-label={t("Filter differences")}>
             {filters.map(([value, label]) => (
               <button key={value} className="segment" aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}</button>
             ))}
@@ -174,26 +185,25 @@ export function Compare() {
 
       <section className="pane compare-start">
         <p>
-          See how this PC differs from another one: apps, tools and versions, PATH, projects and Git. On the other PC, export its audit from
-          Workbench Station, then compare with that file here. Nothing is installed or changed on either PC.
+          {t("See how this PC differs from another one: apps, tools and versions, PATH, projects and Git. On the other PC, export its audit from Workbench Station, then compare with that file here. Nothing is installed or changed on either PC.")}
         </p>
         <div className="row-actions">
           <button className="button button-primary" disabled={!inApp || busy !== null} onClick={() => void run("comparing")}>
             <ArrowsLeftRight size={18} aria-hidden="true" />
-            {busy === "comparing" ? "Comparing…" : "Compare with another PC"}
+            {busy === "comparing" ? t("Comparing…") : t("Compare with another PC")}
           </button>
           <button className="button" disabled={!inApp || busy !== null} onClick={() => void run("exporting")}>
             <Export size={18} aria-hidden="true" />
-            Export this PC's audit
+            {t("Export this PC's audit")}
           </button>
         </div>
-        <p className="detail-note">The exported file has this PC's name, the folders of its tools and projects, and its Git branch names. Share it only with people you trust.</p>
+        <p className="detail-note">{t("The exported file has this PC's name, the folders of its tools and projects, and its Git branch names. Share it only with people you trust.")}</p>
       </section>
 
       {savedTo && (
         <p className="notice" role="status">
           <Check size={20} aria-hidden="true" />
-          <span>Audit saved to {savedTo}. Open Workbench Station on the other PC and compare with this file.</span>
+          <span>{t("Audit saved to {path}. Open Workbench Station on the other PC and compare with this file.", { path: savedTo })}</span>
         </p>
       )}
       {error && (
@@ -203,26 +213,23 @@ export function Compare() {
       )}
 
       {comparison && (
-        <section className="pane update-list" aria-label="Differences">
+        <section className="pane update-list" aria-label={t("Differences")}>
           <p>
-            <b>This PC</b> and <b>{other}</b>
-            {comparison.summary.differenceCount === 0
-              ? " have no differences."
-              : `: ${comparison.summary.differenceCount} ${comparison.summary.differenceCount === 1 ? "difference" : "differences"}.`}{" "}
-            {other}'s audit is from {describeAge(comparison.target.generatedAt)}, this PC's from {describeAge(comparison.reference.generatedAt)}.
+            {count === 0 ? rich(t("{here} and {there} have no differences."), names) : rich(tn(count, "{here} and {there}: {n} difference.", "{here} and {there}: {n} differences."), names)}{" "}
+            {t("{other} was audited {otherAge}; this PC, {thisAge}.", { other, otherAge: describeAge(comparison.target.generatedAt), thisAge: describeAge(comparison.reference.generatedAt) })}
           </p>
-          {comparison.summary.differenceCount > 0 && groups.length === 0 && <p className="empty">No differences of this kind.</p>}
+          {count > 0 && groups.length === 0 && <p className="empty">{t("No differences of this kind.")}</p>}
           {groups.map(({ category, title, items }) => (
             <div className="update-group" key={category}>
               <h2 className="group-title">
-                {title}
+                {t(title)}
                 <span>{items.length}</span>
               </h2>
               <ul className="rows">
                 {items.map((d, index) => (
                   <li className="row" key={`${d.providerId}|${d.componentId}|${d.subjectId}|${d.kind}|${index}`}>
                     <span className="row-title">
-                      {subjectOf(d)} <span className="row-note">{kinds[d.kind] ?? d.kind.replaceAll("-", " ")}</span>
+                      {subjectOf(d)} <span className="row-note">{kinds[d.kind] ? t(kinds[d.kind]) : d.kind.replaceAll("-", " ")}</span>
                     </span>
                     <span className="row-note">{relationText[d.relation] ?? d.relation}</span>
                     <Detail d={d} other={other} />

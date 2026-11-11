@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { msg, t } from "./i18n";
 
 export type Risk = "low" | "medium" | "high";
 
@@ -79,22 +80,24 @@ export interface AppError {
 }
 
 const failureMessages: Record<string, string> = {
-  "audit-failed": "The audit stopped before it finished. Check that this PC is online, then audit again.",
-  "permission-declined": "Windows permission was declined, so nothing was installed. Install again and choose Yes when Windows asks.",
-  "update-stopped": "The install stopped early. History shows what was installed. Audit this PC again before installing the rest.",
-  "invalid-selection": "That selection can't be installed. Audit this PC again, then choose the updates once more.",
-  "powershell-unavailable": "Windows PowerShell didn't start, so Workbench Station can't audit or install. Check that PowerShell isn't blocked on this PC.",
-  "no-audit": "Audit this PC first, so there's something to export or compare.",
-  "compare-failed": "That file couldn't be compared. Choose an audit exported from Workbench Station on the other PC (a .json file).",
-  "plan-failed": "The change was saved, but the list of updates couldn't be rebuilt. Audit this PC again to refresh it.",
-  unexpected: "Something unexpected stopped Workbench Station. Copy the details below and report it.",
+  "audit-failed": msg("The audit stopped before it finished. Check that this PC is online, then audit again."),
+  "permission-declined": msg("Windows permission was declined, so nothing was installed. Install again and choose Yes when Windows asks."),
+  "update-stopped": msg("The install stopped early. History shows what was installed. Audit this PC again before installing the rest."),
+  "invalid-selection": msg("That selection can't be installed. Audit this PC again, then choose the updates once more."),
+  "powershell-unavailable": msg("Windows PowerShell didn't start, so Workbench Station can't audit or install. Check that PowerShell isn't blocked on this PC."),
+  "no-audit": msg("Audit this PC first, so there's something to export or compare."),
+  "compare-failed": msg("That file couldn't be compared. Choose an audit exported from Workbench Station on the other PC (a .json file)."),
+  "plan-failed": msg("The change was saved, but the list of updates couldn't be rebuilt. Audit this PC again to refresh it."),
+  "folder-too-broad": msg("{detail} is too broad to scan. Choose a folder inside the drive."),
+  "settings-invalid": msg("This PC's settings file can't be read, so it wasn't changed. Copy the details below and report it."),
+  unexpected: msg("Something unexpected stopped Workbench Station. Copy the details below and report it."),
 };
 
-/** Turns a command's coded failure, or any other error, into an AppError. */
+/** Turns a command's coded failure, or any other error, into an AppError in the app's language. */
 export function describeFailure(reason: unknown, fallback?: string): AppError {
   if (reason && typeof reason === "object" && "code" in reason) {
     const { code, detail } = reason as { code: string; detail?: string };
-    return { message: failureMessages[code] ?? failureMessages.unexpected, detail: detail || undefined };
+    return { message: t(failureMessages[code] ?? failureMessages.unexpected, { detail: detail ?? "" }), detail: detail || undefined };
   }
   const text = reason instanceof Error ? reason.message : String(reason);
   return fallback ? { message: fallback, detail: text } : { message: text };
@@ -181,8 +184,9 @@ export type AuditSchedule = "off" | "daily" | "weekly";
 export const auditSchedule = () => invoke<AuditSchedule>("audit_schedule");
 export const setAuditSchedule = (frequency: AuditSchedule) => invoke<void>("set_audit_schedule", { frequency });
 
-/** Sets the notification area icon's tooltip. */
-export const setTrayStatus = (text: string) => (inApp ? invoke<void>("set_tray_status", { text }).catch(() => undefined) : Promise.resolve());
+/** Sets the notification area icon's tooltip, and its menu in the app's language. */
+export const setTrayStatus = (text: string) =>
+  inApp ? invoke<void>("set_tray_status", { text, open: t("Open Workbench Station"), quit: t("Quit") }).catch(() => undefined) : Promise.resolve();
 
 /** Whether closing the window keeps the app in the notification area. Off when storage is unavailable. */
 export function keepsRunning(): boolean {
@@ -210,17 +214,20 @@ export async function loadLatestLog(): Promise<RunLog | null> {
   return logs?.find((log) => log.mode !== "dry-run") ?? null;
 }
 
-export const sourceNames: Record<string, string> = {
+const sourceNames: Record<string, string> = {
   winget: "WinGet",
   chocolatey: "Chocolatey",
-  "npm-registry": "npm and pnpm",
-  toolchain: "Developer tools",
-  editor: "Editors",
+  "npm-registry": msg("npm and pnpm"),
+  toolchain: msg("Developer tools"),
+  editor: msg("Editors"),
   wsl: "WSL",
   "windows-update": "Windows Update",
-  policy: "Your standard",
-  consolidation: "Duplicates",
+  policy: msg("Your standard"),
+  consolidation: msg("Duplicates"),
 };
+
+/** Where an update comes from, in the app's language. */
+export const sourceName = (type: string) => t(sourceNames[type] ?? type);
 
 export const sourceOrder = Object.keys(sourceNames);
 
@@ -228,10 +235,3 @@ export function ageInHours(iso: string): number {
   return (Date.now() - new Date(iso).getTime()) / 3_600_000;
 }
 
-export function describeAge(iso: string): string {
-  const hours = ageInHours(iso);
-  if (hours < 1) return "less than an hour ago";
-  if (hours < 24) return `${Math.floor(hours)} hours ago`;
-  const days = Math.floor(hours / 24);
-  return days === 1 ? "yesterday" : `${days} days ago`;
-}

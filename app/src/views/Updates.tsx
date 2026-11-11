@@ -1,8 +1,9 @@
 import { ArrowCounterClockwise, ArrowSquareOut, BookOpenText, Clock, PushPin, Sparkle, SquaresFour, WarningCircle } from "@phosphor-icons/react";
 import { useMemo, useRef, useState } from "react";
-import { ageInHours, inApp, localDate, openLink, releaseNotes, sourceNames, type Action, type Hold, type Risk, type Snapshot } from "../data";
+import { ageInHours, describeFailure, inApp, localDate, openLink, releaseNotes, sourceName, type Action, type Hold, type Risk, type Snapshot } from "../data";
 import { guideForAction, type GuideId } from "../guides";
-import { Command, groupBySource, versionsOf } from "../actions";
+import { Command, groupBySource, riskLabel, versionsOf } from "../actions";
+import { formatDate, t, tn } from "../i18n";
 
 type Filter = "ready" | "manual" | Risk | "held";
 
@@ -15,7 +16,7 @@ function ReleaseNotes({ pkg, version }: { pkg: string; version: string }) {
     setNotes({ state: "loading" });
     releaseNotes(pkg, version).then(
       (found) => setNotes({ state: "done", ...found }),
-      (reason) => setNotes({ state: "failed", reason: String(reason) }),
+      (reason) => setNotes({ state: "failed", reason: describeFailure(reason, t("The WinGet catalog couldn't be reached, so what changes isn't known. Try again later.")).message }),
     );
   };
 
@@ -23,7 +24,7 @@ function ReleaseNotes({ pkg, version }: { pkg: string; version: string }) {
     return (
       <button className="link" disabled={!inApp || notes.state === "loading"} onClick={load}>
         <Sparkle size={16} aria-hidden="true" />
-        {notes.state === "loading" ? "Looking up what changes…" : `What changes in ${version}`}
+        {notes.state === "loading" ? t("Looking up what changes…") : t("What changes in {version}", { version })}
       </button>
     );
   }
@@ -34,16 +35,16 @@ function ReleaseNotes({ pkg, version }: { pkg: string; version: string }) {
       {notes.url && (
         <button className="link" onClick={() => openLink(notes.url!)}>
           <ArrowSquareOut size={16} aria-hidden="true" />
-          Release notes on {new URL(notes.url).hostname}
+          {t("Release notes on {site}", { site: new URL(notes.url).hostname })}
         </button>
       )}
-      {!notes.notes && !notes.url && <p className="detail-note">The WinGet catalog has no notes for {version}.</p>}
+      {!notes.notes && !notes.url && <p className="detail-note">{t("The WinGet catalog has no notes for {version}.", { version })}</p>}
     </div>
   );
 }
 
 /** "Monday, November 18" for a yyyy-MM-dd date, read as a local day. */
-const describeDay = (day: string) => new Date(`${day}T00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+const describeDay = (day: string) => formatDate(new Date(`${day}T00:00`), { weekday: "long", month: "long", day: "numeric" });
 
 function ActionDetail(props: { action: Action; locked: boolean; onHold(until: string | null): void; onOpenGuide(id: GuideId): void }) {
   const { action, locked, onHold, onOpenGuide } = props;
@@ -52,30 +53,30 @@ function ActionDetail(props: { action: Action; locked: boolean; onHold(until: st
   return (
     <>
       <p className="detail-facts">
-        <span data-risk={action.risk}>{action.risk} risk</span>
-        <span>{action.reversible ? "Can be undone" : "Cannot be undone"}</span>
-        <span>{sourceNames[action.source.type] ?? action.source.type}</span>
+        <span data-risk={action.risk}>{riskLabel(action.risk)}</span>
+        <span>{action.reversible ? t("Can be undone") : t("Cannot be undone")}</span>
+        <span>{sourceName(action.source.type)}</span>
       </p>
       <p>{action.message}</p>
-      {action.command ? <Command text={action.command} /> : <p className="detail-note">This one has no command. You do it yourself.</p>}
-      {blocked && <p className="detail-note">High-risk updates do not run from here.</p>}
+      {action.command ? <Command text={action.command} /> : <p className="detail-note">{t("This one has no command. You do it yourself.")}</p>}
+      {blocked && <p className="detail-note">{t("High-risk updates do not run from here.")}</p>}
       {action.source.type === "winget" && action.subjectId?.startsWith("winget:") && action.targetVersion && (
         <ReleaseNotes key={action.actionId} pkg={action.subjectId.slice("winget:".length)} version={action.targetVersion} />
       )}
       {guide && (
         <button className="link" onClick={() => onOpenGuide(guide)}>
           <BookOpenText size={16} aria-hidden="true" />
-          How do I do this?
+          {t("How do I do this?")}
         </button>
       )}
       <div className="row-actions">
         <button className="link" disabled={!inApp || locked} onClick={() => onHold(localDate(7))}>
           <Clock size={16} aria-hidden="true" />
-          Remind me in 7 days
+          {t("Remind me in 7 days")}
         </button>
         <button className="link" disabled={!inApp || locked} onClick={() => onHold(null)}>
           <PushPin size={16} aria-hidden="true" />
-          {action.currentVersion ? `Stay on ${action.currentVersion}` : "Hide until I resume it"}
+          {action.currentVersion ? t("Stay on {version}", { version: action.currentVersion }) : t("Hide until I resume it")}
         </button>
       </div>
     </>
@@ -153,19 +154,19 @@ export function Updates(props: {
   const selectable = visible.filter((a) => a.command !== null && a.risk !== "high");
   const chosen = actions.filter((a) => selected.has(a.actionId));
   const focused = visible.find((a) => a.actionId === focusedId) ?? visible[0] ?? null;
-  const filters: [Filter, string][] = [["ready", "Ready"], ["manual", "Needs you"], ["low", "Low risk"], ["medium", "Medium risk"], ["high", "High risk"], ["held", "On hold"]];
+  const filters: [Filter, string][] = [["ready", t("Ready")], ["manual", t("Needs you")], ["low", riskLabel("low")], ["medium", riskLabel("medium")], ["high", riskLabel("high")], ["held", t("On hold")]];
 
   if (!snapshot.plan) {
     return (
       <>
         <div className="page-head">
-          <h1 className="page-title">Updates</h1>
+          <h1 className="page-title">{t("Updates")}</h1>
         </div>
         <section className="pane first-run">
-          <p className="empty">Updates appear here after the first audit of this PC.</p>
+          <p className="empty">{t("Updates appear here after the first audit of this PC.")}</p>
           <button className="button" onClick={onOpenOverview}>
             <SquaresFour size={18} aria-hidden="true" />
-            Go to Overview
+            {t("Go to Overview")}
           </button>
         </section>
       </>
@@ -175,8 +176,8 @@ export function Updates(props: {
   return (
     <>
       <div className="page-head">
-        <h1 className="page-title">Updates</h1>
-        <div className="segments" role="group" aria-label="Filter updates">
+        <h1 className="page-title">{t("Updates")}</h1>
+        <div className="segments" role="group" aria-label={t("Filter updates")}>
           {filters.map(([value, label]) => (
             <button key={value} className="segment" aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}</button>
           ))}
@@ -185,36 +186,36 @@ export function Updates(props: {
       {stale && (
         <p className="notice">
           <WarningCircle size={20} aria-hidden="true" />
-          <span>This list is more than a day old. Audit this PC from Overview to install updates.</span>
+          <span>{t("This list is more than a day old. Audit this PC from Overview to install updates.")}</span>
         </p>
       )}
 
       <div className="master">
         <section className="pane update-list">
           {filter === "held" && snapshot.holds.length === 0 && (
-            <p className="empty">Nothing is on hold. Open an update to be reminded of it in a week, or to stay on the version you have.</p>
+            <p className="empty">{t("Nothing is on hold. Open an update to be reminded of it in a week, or to stay on the version you have.")}</p>
           )}
           {filter === "held" && snapshot.holds.length > 0 && (
             <ul className="rows">
               {snapshot.holds.map((h) => (
                 <li className="row" key={h.actionId}>
                   <span className="row-title">{h.title}</span>
-                  <span className="row-note">{h.until ? `Back on ${describeDay(h.until)}` : "Until you resume it"}</span>
+                  <span className="row-note">{h.until ? t("Back on {day}", { day: describeDay(h.until) }) : t("Until you resume it")}</span>
                   <div className="row-actions">
                     <button className="link" disabled={!inApp || locked} onClick={() => changeHolds(snapshot.holds.filter((other) => other.actionId !== h.actionId))}>
                       <ArrowCounterClockwise size={16} aria-hidden="true" />
-                      Resume
+                      {t("Resume")}
                     </button>
                   </div>
                 </li>
               ))}
             </ul>
           )}
-          {filter !== "held" && visible.length === 0 && <p className="empty">No updates in this group.</p>}
+          {filter !== "held" && visible.length === 0 && <p className="empty">{t("No updates in this group.")}</p>}
           {groupBySource(visible).map(([source, items]) => (
             <div className="update-group" key={source}>
               <h2 className="group-title">
-                {sourceNames[source] ?? source}
+                {sourceName(source)}
                 <span>{items.length}</span>
               </h2>
               {items.map((action) => {
@@ -224,13 +225,13 @@ export function Updates(props: {
                   <div className="update" key={action.actionId} data-focused={isFocused || undefined}>
                     <input
                       type="checkbox"
-                      aria-label={`Select ${action.title}`}
+                      aria-label={t("Select {title}", { title: action.title })}
                       disabled={!runnable}
                       checked={selected.has(action.actionId)}
                       onChange={() => toggle(action.actionId)}
                     />
                     <button className="update-open" aria-expanded={isFocused} onClick={() => setFocusedId(action.actionId)}>
-                      <i className="risk-mark" data-risk={action.risk} data-manual={action.command === null} data-tip={`${action.risk[0].toUpperCase()}${action.risk.slice(1)} risk`} />
+                      <i className="risk-mark" data-risk={action.risk} data-manual={action.command === null} data-tip={riskLabel(action.risk)} />
                       <span className="row-title">{action.title}</span>
                       {versionsOf(action)}
                     </button>
@@ -243,7 +244,7 @@ export function Updates(props: {
         </section>
 
         {focused && (
-          <aside className="pane inspector" aria-label="Selected update">
+          <aside className="pane inspector" aria-label={t("Selected update")}>
             <h2 className="inspector-title">{focused.title}</h2>
             {versionsOf(focused)}
             <ActionDetail action={focused} locked={locked} onHold={(until) => hold(focused, until)} onOpenGuide={onOpenGuide} />
@@ -252,23 +253,23 @@ export function Updates(props: {
       </div>
 
       <div className="dock" data-active={selected.size > 0 || undefined}>
-        <span className="dock-count">{selected.size === 0 ? "Choose updates to install" : `${selected.size} selected`}</span>
-        {selected.size > 0 && <button className="link" onClick={() => setSelected(new Set())}>Clear</button>}
-        <button className="button" onClick={() => setSelected(new Set(selectable.map((a) => a.actionId)))}>Select all shown</button>
+        <span className="dock-count">{selected.size === 0 ? t("Choose updates to install") : tn(selected.size, "{n} selected", "{n} selected")}</span>
+        {selected.size > 0 && <button className="link" onClick={() => setSelected(new Set())}>{t("Clear")}</button>}
+        <button className="button" onClick={() => setSelected(new Set(selectable.map((a) => a.actionId)))}>{t("Select all shown")}</button>
         <button className="button button-primary" disabled={!inApp || busy || stale || selected.size === 0} onClick={() => dialog.current?.showModal()}>
-          Install {selected.size} selected
+          {t("Install {n} selected", { n: selected.size })}
         </button>
       </div>
 
       <dialog className="sheet" ref={dialog} aria-labelledby="confirm-title">
-        <h2 className="sheet-title" id="confirm-title">Install {selected.size} {selected.size === 1 ? "update" : "updates"}?</h2>
+        <h2 className="sheet-title" id="confirm-title">{tn(selected.size, "Install {n} update?", "Install {n} updates?")}</h2>
         <ul className="rows sheet-list">
           {chosen.map((action) => (
             <li className="row" key={action.actionId}>
               <span className="row-title">{action.title}</span>
               {versionsOf(action) ?? <span />}
               <div className="confirm-note">
-                <p>{action.risk} risk, {action.reversible ? "can be undone" : "cannot be undone"}</p>
+                <p>{riskLabel(action.risk)}, {action.reversible ? t("can be undone") : t("cannot be undone")}</p>
                 {action.command && <Command text={action.command} />}
               </div>
             </li>
@@ -276,20 +277,20 @@ export function Updates(props: {
         </ul>
         <div className="sheet-foot">
           <p>
-            Windows asks for permission once. Close the apps being updated first, or their updates can fail. If one fails, the rest still run.
-            {chosen.some((a) => a.command?.startsWith("winget")) && " Installing accepts the package and source agreements of the WinGet packages listed."}
+            {t("Windows asks for permission once. Close the apps being updated first, or their updates can fail. If one fails, the rest still run.")}
+            {chosen.some((a) => a.command?.startsWith("winget")) && ` ${t("Installing accepts the package and source agreements of the WinGet packages listed.")}`}
           </p>
-          <p>When it finishes, this PC is audited again to verify the result.</p>
+          <p>{t("When it finishes, this PC is audited again to verify the result.")}</p>
           <label className="check">
             <input type="checkbox" checked={restorePoint} onChange={(e) => chooseRestorePoint(e.target.checked)} />
             <span>
-              <b>Create a restore point first</b>
-              Lets you take this PC back to how it is now. Windows makes at most one a day and needs System Protection on; if it can't, nothing is installed.
+              <b>{t("Create a restore point first")}</b>
+              {t("Lets you take this PC back to how it is now. Windows makes at most one a day and needs System Protection on; if it can't, nothing is installed.")}
             </span>
           </label>
           <form method="dialog" className="sheet-actions">
-            <button className="button">Cancel</button>
-            <button className="button button-primary" onClick={() => onInstall([...selected], restorePoint)}>Install {selected.size} {selected.size === 1 ? "update" : "updates"}</button>
+            <button className="button">{t("Cancel")}</button>
+            <button className="button button-primary" onClick={() => onInstall([...selected], restorePoint)}>{tn(selected.size, "Install {n} update", "Install {n} updates")}</button>
           </form>
         </div>
       </dialog>
