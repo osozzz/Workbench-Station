@@ -12,7 +12,7 @@ use std::{
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager,
+    AppHandle, Emitter, Manager,
 };
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
@@ -272,6 +272,107 @@ fn open_link(app: AppHandle, url: String) -> Result<(), String> {
     app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
 }
 
+/// The Task Scheduler task that audits this PC, and the argument it starts the app with.
+const AUDIT_TASK: &str = r"Workbench Station\Audit";
+const SCHEDULED_AUDIT: &str = "--scheduled-audit";
+
+fn launched_for_audit() -> bool {
+    std::env::args().any(|arg| arg == SCHEDULED_AUDIT)
+}
+
+/// "scheduled-audit" when Task Scheduler started the app: it audits hidden, notifies and closes.
+#[tauri::command]
+fn launch_mode() -> &'static str {
+    if launched_for_audit() {
+        "scheduled-audit"
+    } else {
+        "normal"
+    }
+}
+
+fn xml_text(text: &str) -> String {
+    text.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+}
+
+/// A task for the current user, without elevation, that runs even if the PC was off at the set time.
+fn audit_task_xml(exe: &Path, weekly: bool) -> String {
+    let schedule = if weekly {
+        "<ScheduleByWeek><WeeksInterval>1</WeeksInterval><DaysOfWeek><Monday /></DaysOfWeek></ScheduleByWeek>"
+    } else {
+        "<ScheduleByDay><DaysInterval>1</DaysInterval></ScheduleByDay>"
+    };
+    format!(
+        r#"<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo><Description>Audits this PC for Workbench Station. It only reads; it never installs anything.</Description></RegistrationInfo>
+  <Triggers><CalendarTrigger><StartBoundary>2026-01-05T12:00:00</StartBoundary>{schedule}</CalendarTrigger></Triggers>
+  <Principals><Principal id="Author"><LogonType>InteractiveToken</LogonType><RunLevel>LeastPrivilege</RunLevel></Principal></Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <ExecutionTimeLimit>PT1H</ExecutionTimeLimit>
+  </Settings>
+  <Actions Context="Author"><Exec><Command>{}</Command><Arguments>{SCHEDULED_AUDIT}</Arguments></Exec></Actions>
+</Task>
+"#,
+        xml_text(&exe.display().to_string())
+    )
+}
+
+fn schtasks(args: &[&str]) -> Result<std::process::Output, String> {
+    let exe = PathBuf::from(std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into())).join(r"System32\schtasks.exe");
+    Command::new(exe).args(args).creation_flags(CREATE_NO_WINDOW).output().map_err(|e| e.to_string())
+}
+
+/// "off", "daily" or "weekly", read from the task itself so it can't drift from a saved setting.
+#[tauri::command]
+async fn audit_schedule() -> Result<&'static str, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let output = schtasks(&["/Query", "/TN", AUDIT_TASK, "/XML"])?;
+        if !output.status.success() {
+            return Ok("off");
+        }
+        let xml = String::from_utf8_lossy(&output.stdout).replace('\0', "");
+        Ok(if xml.contains("<ScheduleByWeek>") { "weekly" } else { "daily" })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn set_audit_schedule(frequency: String) -> Result<(), String> {
+    let weekly = match frequency.as_str() {
+        "off" => {
+            return tauri::async_runtime::spawn_blocking(|| schtasks(&["/Delete", "/TN", AUDIT_TASK, "/F"]).map(|_| ()))
+                .await
+                .map_err(|e| e.to_string())?;
+        }
+        "daily" => false,
+        "weekly" => true,
+        other => return Err(format!("Unknown schedule: {other}")),
+    };
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        // schtasks reads task XML as UTF-16.
+        let file = std::env::temp_dir().join(format!("workbench-station-audit-{}.xml", std::process::id()));
+        let mut bytes = vec![0xFF, 0xFE];
+        bytes.extend(audit_task_xml(&exe, weekly).encode_utf16().flat_map(u16::to_le_bytes));
+        fs::write(&file, bytes).map_err(|e| e.to_string())?;
+        let output = schtasks(&["/Create", "/TN", AUDIT_TASK, "/XML", &file.display().to_string(), "/F"]);
+        let _ = fs::remove_file(&file);
+        let output = output?;
+        if output.status.success() {
+            Ok(())
+        } else {
+            Err(format!("Windows could not schedule the audit. {}", String::from_utf8_lossy(&output.stderr).trim()))
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 /// Brings the window back, from the notification area or a second launch.
 fn show_main(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
@@ -339,7 +440,14 @@ async fn update(app: AppHandle, action_ids: Vec<String>, restore_point: bool) ->
 fn main() {
     tauri::Builder::default()
         // Registered first, so a second launch only brings the open window forward.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)))
+        // A scheduled audit while the app is open runs in the open window instead of a second copy.
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            if args.iter().any(|arg| arg == SCHEDULED_AUDIT) {
+                let _ = app.emit("scheduled-audit", ());
+            } else {
+                show_main(app);
+            }
+        }))
         // Restores size, position and maximized state. Visibility stays with the app, which shows the
         // window once it has drawn.
         .plugin(
@@ -372,7 +480,11 @@ fn main() {
                 })
                 .build(app)?;
 
-            // If the page never runs, the window still appears instead of staying hidden.
+            // If the page never runs, the window still appears instead of staying hidden; a scheduled audit
+            // stays hidden on purpose.
+            if launched_for_audit() {
+                return Ok(());
+            }
             let window = app.get_webview_window("main").expect("the main window exists");
             std::thread::spawn(move || {
                 std::thread::sleep(std::time::Duration::from_secs(5));
@@ -380,7 +492,7 @@ fn main() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![read_data, save_folders, pick_folder, refresh, update, export_report, release_notes, open_link, set_tray_status])
+        .invoke_handler(tauri::generate_handler![read_data, save_folders, pick_folder, refresh, update, export_report, release_notes, open_link, set_tray_status, launch_mode, audit_schedule, set_audit_schedule])
         .run(tauri::generate_context!())
         .expect("the Workbench Station window could not start");
 }
@@ -388,6 +500,16 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_audit_task_runs_the_app_read_only_on_its_schedule() {
+        let daily = audit_task_xml(Path::new(r"C:\Apps\R&D <x>\workbench-station.exe"), false);
+        assert!(daily.contains(r"<Command>C:\Apps\R&amp;D &lt;x&gt;\workbench-station.exe</Command>"));
+        assert!(daily.contains("<Arguments>--scheduled-audit</Arguments>"));
+        assert!(daily.contains("<DaysInterval>1</DaysInterval>") && !daily.contains("ScheduleByWeek"));
+        assert!(daily.contains("<RunLevel>LeastPrivilege</RunLevel>") && daily.contains("<StartWhenAvailable>true</StartWhenAvailable>"));
+        assert!(audit_task_xml(Path::new("a.exe"), true).contains("<ScheduleByWeek>"));
+    }
 
     #[test]
     fn release_notes_come_from_plain_and_block_fields() {

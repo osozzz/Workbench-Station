@@ -1,7 +1,7 @@
 import { Check, Folder, FolderPlus, Trash } from "@phosphor-icons/react";
 import { getVersion } from "@tauri-apps/api/app";
 import { useEffect, useState } from "react";
-import { inApp, keepsRunning, setKeepsRunning } from "../data";
+import { auditSchedule, inApp, keepsRunning, setAuditSchedule, setKeepsRunning, type AuditSchedule } from "../data";
 import { useFolders } from "../folders";
 
 export function Settings({ onError }: { onError(message: string | null): void }) {
@@ -42,9 +42,55 @@ export function Settings({ onError }: { onError(message: string | null): void })
           </p>
         )}
       </section>
+      <AutomaticAudit onError={onError} />
       <WindowSettings />
       <About />
     </>
+  );
+}
+
+const schedules: [AuditSchedule, string][] = [
+  ["off", "Off"],
+  ["daily", "Daily"],
+  ["weekly", "Weekly"],
+];
+
+function AutomaticAudit({ onError }: { onError(message: string | null): void }) {
+  const [schedule, setSchedule] = useState<AuditSchedule | null>(null);
+  useEffect(() => {
+    if (inApp) void auditSchedule().then(setSchedule, () => setSchedule("off"));
+  }, []);
+  const choose = (next: AuditSchedule) => {
+    const before = schedule;
+    setSchedule(next);
+    onError(null);
+    setAuditSchedule(next).catch((reason) => {
+      setSchedule(before);
+      onError(String(reason));
+    });
+  };
+
+  return (
+    <section className="pane settings">
+      <div className="pane-head">
+        <div>
+          <h2 className="section-title">Automatic audit</h2>
+          <p className="pane-note">Audits this PC in the background and tells you when updates are ready. It only reads; installing still waits for you.</p>
+        </div>
+        <div className="segments" role="group" aria-label="Automatic audit">
+          {schedules.map(([value, label]) => (
+            <button key={value} className="segment" aria-pressed={schedule === value} disabled={!inApp || schedule === null} onClick={() => choose(value)}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {(schedule === "daily" || schedule === "weekly") && (
+        <p className="pane-note">
+          {schedule === "daily" ? "Every day at noon" : "Every Monday at noon"}, or as soon as this PC is on after that.
+        </p>
+      )}
+    </section>
   );
 }
 
