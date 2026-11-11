@@ -139,6 +139,57 @@ async fn refresh(app: AppHandle) -> Result<(), Value> {
     .map_err(|e| failure("unexpected", e))?
 }
 
+/// One readable file from the engine's own outputs: the audit, then the policy evaluation and the plan.
+fn compose_report(audit: &str, evaluation: Option<&str>, plan: Option<&str>) -> String {
+    let mut report = audit.trim_start_matches('\u{feff}').trim_end().to_string();
+    for (title, text) in [("Policy evaluation", evaluation), ("Update plan", plan)] {
+        if let Some(text) = text {
+            report.push_str(&format!("\n\n## {title}\n\n```text\n{}\n```", text.trim_start_matches('\u{feff}').trim_end()));
+        }
+    }
+    report.push('\n');
+    report
+}
+
+/// The newest audit report: the Markdown files written straight into reports/.
+fn latest_audit(reports: &Path) -> Option<PathBuf> {
+    fs::read_dir(reports)
+        .ok()?
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "md"))
+        .max_by_key(|entry| entry.metadata().and_then(|m| m.modified()).ok())
+        .map(|entry| entry.path())
+}
+
+/// Saves the last audit as one Markdown file where the person chooses. Returns where, or None if cancelled.
+#[tauri::command]
+async fn export_report(app: AppHandle) -> Result<Option<String>, String> {
+    let reports = data_root(&app)?.join("reports");
+    let Some(audit) = latest_audit(&reports) else {
+        return Err("There's no audit to export yet. Audit this PC first.".to_string());
+    };
+    let read = |path: PathBuf| fs::read_to_string(path).ok();
+    let report = compose_report(
+        &fs::read_to_string(&audit).map_err(|e| e.to_string())?,
+        read(reports.join("evaluation").join("evaluation.txt")).as_deref(),
+        read(reports.join("update-plan").join("update-plan.txt")).as_deref(),
+    );
+    let name = format!("Workbench Station report {}.md", audit.file_stem().unwrap_or_default().to_string_lossy());
+
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut dialog = app.dialog().file().set_file_name(name).add_filter("Markdown", &["md"]);
+        if let Some(window) = app.get_webview_window("main") {
+            dialog = dialog.set_parent(&window);
+        }
+        let Some(target) = dialog.blocking_save_file() else { return Ok(None) };
+        let target = target.into_path().map_err(|e| e.to_string())?;
+        fs::write(&target, report).map_err(|e| e.to_string())?;
+        Ok(Some(target.display().to_string()))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 /// Action IDs reach a command line, so only the characters the plan contract allows get through.
 fn is_action_id(id: &str) -> bool {
     !id.is_empty() && id.chars().all(|c| c.is_ascii_alphanumeric() || "._+:-".contains(c))
@@ -211,7 +262,7 @@ fn main() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![read_data, save_folders, pick_folder, refresh, update])
+        .invoke_handler(tauri::generate_handler![read_data, save_folders, pick_folder, refresh, update, export_report])
         .run(tauri::generate_context!())
         .expect("the Workbench Station window could not start");
 }
@@ -219,6 +270,14 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_report_keeps_the_audit_and_adds_what_exists() {
+        let report = compose_report("\u{feff}# Audit\n\nbody\n", Some("Findings: 3\n"), None);
+        assert!(report.starts_with("# Audit"));
+        assert!(report.contains("## Policy evaluation\n\n```text\nFindings: 3\n```"));
+        assert!(!report.contains("Update plan"));
+    }
 
     #[test]
     fn saving_folders_keeps_the_other_settings() {

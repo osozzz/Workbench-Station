@@ -1,6 +1,6 @@
-import { ArrowRight, Check, Folder, FolderPlus, HardDrives, MagnifyingGlass, Prohibit, ShieldCheck, WarningCircle, X } from "@phosphor-icons/react";
+import { ArrowRight, Check, FileArrowDown, Folder, FolderPlus, HardDrives, MagnifyingGlass, Prohibit, ShieldCheck, WarningCircle, X } from "@phosphor-icons/react";
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { ageInHours, describeAge, inApp, sourceNames, type Action, type ActionResult, type LogAction, type RunLog, type Snapshot } from "../data";
+import { ageInHours, describeAge, exportReport, inApp, sourceNames, type Action, type ActionResult, type LogAction, type RunLog, type Snapshot } from "../data";
 import { groupBySource, versionsOf } from "../actions";
 import { useFolders } from "../folders";
 
@@ -83,6 +83,11 @@ function RunRows({ log }: { log: RunLog }) {
 export function Overview(props: { snapshot: Snapshot; run: Run | null; auditing: boolean; onAudit(): void; onOpenUpdates(): void; onError(message: string | null): void }) {
   const { snapshot, run, auditing, onAudit, onOpenUpdates, onError } = props;
   const { plan, evaluation } = snapshot;
+  const [savedTo, setSavedTo] = useState<string | null>(null);
+  const saveReport = () => {
+    onError(null);
+    exportReport().then((path) => path && setSavedTo(path), (reason) => onError(String(reason)));
+  };
   const auditButton = (primary: boolean) => (
     <button className={primary ? "button button-primary" : "button"} disabled={!inApp || auditing || run !== null} onClick={onAudit}>
       <MagnifyingGlass size={18} aria-hidden="true" />
@@ -128,6 +133,9 @@ export function Overview(props: { snapshot: Snapshot; run: Run | null; auditing:
           </div>
           {!run && (
             <div className="hero-actions">
+              <button className="icon-button" aria-label="Export report" data-tip="Export report" disabled={!inApp} onClick={saveReport}>
+                <FileArrowDown size={20} aria-hidden="true" />
+              </button>
               {auditButton(stale)}
               {ready.length > 0 && !stale && (
                 <button className="button button-primary" onClick={onOpenUpdates}>
@@ -138,6 +146,15 @@ export function Overview(props: { snapshot: Snapshot; run: Run | null; auditing:
             </div>
           )}
         </div>
+
+        {savedTo && (
+          <p className="notice">
+            <Check size={20} aria-hidden="true" />
+            <span>
+              Report saved to {savedTo}. It includes this PC's name, its apps and versions, and folder paths, so share it only with people you trust.
+            </span>
+          </p>
+        )}
 
         {stale && !run && (
           <p className="notice">
