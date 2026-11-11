@@ -53,6 +53,7 @@ export interface RunLog {
   mode: "dry-run" | "apply" | "apply-confirm-all";
   actions: LogAction[];
   preflight?: { blockingApps: { app: string; packageId: string }[] };
+  restorePoint?: { result: "creating" | "created" | "recent" | "failed"; reason: string | null; createdAt: string | null };
 }
 
 export interface Snapshot {
@@ -100,7 +101,7 @@ export async function loadSnapshot(): Promise<Snapshot> {
 }
 
 export const refresh = () => invoke<void>("refresh");
-export const runUpdate = (actionIds: string[]) => invoke<void>("update", { actionIds });
+export const runUpdate = (actionIds: string[], restorePoint: boolean) => invoke<void>("update", { actionIds, restorePoint });
 /** Saves the last audit as one Markdown file; resolves to where it was saved, or null if cancelled. */
 export const exportReport = () => invoke<string | null>("export_report");
 /** What changes in one version of a WinGet package, from its manifest in the WinGet catalog. */

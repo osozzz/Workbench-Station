@@ -275,7 +275,7 @@ fn is_action_id(id: &str) -> bool {
 
 /// Runs the selected actions with one UAC prompt. The script rechecks the plan, the allow-list and the count.
 #[tauri::command]
-async fn update(app: AppHandle, action_ids: Vec<String>) -> Result<(), Value> {
+async fn update(app: AppHandle, action_ids: Vec<String>, restore_point: bool) -> Result<(), Value> {
     if action_ids.is_empty() || !action_ids.iter().all(|id| is_action_id(id)) {
         return Err(failure("invalid-selection", action_ids.join(",")));
     }
@@ -286,9 +286,10 @@ async fn update(app: AppHandle, action_ids: Vec<String>) -> Result<(), Value> {
     let plan = quoted(data_path.join("reports").join("update-plan").join("update-plan.json"));
     let data = quoted(data_path);
     let inner = format!(
-        "-NoProfile -ExecutionPolicy Bypass -File \"{script}\" -Plan \"{plan}\" -DataDirectory \"{data}\" -Action {} -Apply -ConfirmedCount {}",
+        "-NoProfile -ExecutionPolicy Bypass -File \"{script}\" -Plan \"{plan}\" -DataDirectory \"{data}\" -Action {} -Apply -ConfirmedCount {}{}",
         action_ids.join(","),
-        action_ids.len()
+        action_ids.len(),
+        if restore_point { " -RestorePoint" } else { "" }
     );
     // Start-Process -Wait drops the exit code; reading Handle keeps it on Windows PowerShell 5.1.
     let elevate = format!(

@@ -379,6 +379,40 @@ function Set-WinGetDownloader {
     return $backup
 }
 
+function New-ExecutionRestorePoint {
+    <#
+    .SYNOPSIS
+    Creates a System Restore point before updates run, or reports the one Windows made in the last 24 hours.
+    .DESCRIPTION
+    Checkpoint-Computer creates at most one restore point a day and only warns when it skips one, so a skip
+    counts as covered only when a point from the last 24 hours really exists. Needs an elevated Windows
+    PowerShell and System Protection on the system drive. Returns result (created, recent or failed),
+    reason and createdAt.
+    #>
+    param([DateTimeOffset]$Now = [DateTimeOffset]::Now)
+
+    $latest = {
+        $point = @(Get-ComputerRestorePoint -ErrorAction SilentlyContinue) | Sort-Object SequenceNumber | Select-Object -Last 1
+        if ($point) { [DateTimeOffset][Management.ManagementDateTimeConverter]::ToDateTime($point.CreationTime) }
+    }
+    $turnOn = 'Turn on System Protection for the system drive (search Windows for "Create a restore point"), or install without one.'
+    $before = & $latest
+    try {
+        Checkpoint-Computer -Description 'Workbench Station: before updates' -RestorePointType MODIFY_SETTINGS -ErrorAction Stop -WarningVariable skipped -WarningAction SilentlyContinue
+    }
+    catch {
+        return [pscustomobject][ordered]@{ result = 'failed'; reason = "Windows could not create a restore point: $($_.Exception.Message) $turnOn"; createdAt = $null }
+    }
+    $after = & $latest
+    if ($after -and (-not $before -or $after -gt $before)) {
+        return [pscustomobject][ordered]@{ result = 'created'; reason = $null; createdAt = $after.ToString('o') }
+    }
+    if ($after -and ($Now - $after).TotalHours -lt 24) {
+        return [pscustomobject][ordered]@{ result = 'recent'; reason = 'Windows makes at most one restore point a day, so the one from the last 24 hours covers this install.'; createdAt = $after.ToString('o') }
+    }
+    return [pscustomobject][ordered]@{ result = 'failed'; reason = "Windows did not create a restore point. $(@($skipped) -join ' ') $turnOn".Trim(); createdAt = $null }
+}
+
 function Get-ExecutionFailureDetail {
     <#
     .SYNOPSIS
@@ -481,6 +515,9 @@ function Invoke-WorkstationUpdate {
     Asks the operator to confirm the whole batch (-ConfirmAll) and returns the typed text.
     .PARAMETER Runner
     Runs one validated call. Tests replace it; production uses Invoke-ExecutionCall.
+    .PARAMETER RestorePoint
+    Creates a restore point after confirmation and before the first action. When Windows cannot make one,
+    nothing runs.
     #>
     [CmdletBinding()]
     param(
@@ -490,6 +527,7 @@ function Invoke-WorkstationUpdate {
         [ValidateSet('', 'low', 'medium')][string]$Risk = '',
         [switch]$Apply,
         [switch]$ConfirmAll,
+        [switch]$RestorePoint,
         [Parameter(Mandatory)][string]$LogDirectory,
         [scriptblock]$Confirmer,
         [scriptblock]$BatchConfirmer,
@@ -497,6 +535,7 @@ function Invoke-WorkstationUpdate {
         [scriptblock]$Elevated = { Test-ExecutionElevated },
         [scriptblock]$ProcessLister = { @(Get-Process | ForEach-Object ProcessName) },
         [scriptblock]$DownloaderCheck = { Get-WinGetDownloader },
+        [scriptblock]$RestorePointCreator = { New-ExecutionRestorePoint },
         [DateTimeOffset]$Now = [DateTimeOffset]::Now
     )
 
@@ -589,6 +628,24 @@ function Invoke-WorkstationUpdate {
         }
     }
 
+    # A restore point, when asked for, comes after every confirmation and before anything changes.
+    if ($Apply -and $RestorePoint -and $runnable.Count -gt 0) {
+        Write-Host ''
+        Write-Host 'Creating a restore point...'
+        $log | Add-Member -NotePropertyName restorePoint -NotePropertyValue ([pscustomobject][ordered]@{ result = 'creating'; reason = $null; createdAt = $null }) -Force
+        Write-ExecutionLog -Path $logPath -Log $log
+        $log.restorePoint = & $RestorePointCreator
+        Write-ExecutionLog -Path $logPath -Log $log
+        if ($log.restorePoint.result -eq 'failed') {
+            foreach ($candidate in $runnable) { $candidate.entry.result = 'skipped'; $candidate.entry.reason = $log.restorePoint.reason }
+            $runnable.Clear()
+            Write-Host "   $($log.restorePoint.reason) Nothing was run."
+        }
+        else {
+            Write-Host $(if ($log.restorePoint.reason) { "   $($log.restorePoint.reason)" } else { '   Done.' })
+        }
+    }
+
     # 2. Run.
     if ($Apply) {
         foreach ($candidate in $runnable) {
@@ -648,6 +705,7 @@ Export-ModuleMember -Function @(
     'Get-ExecutionBlockingApps',
     'Get-WinGetDownloader',
     'Set-WinGetDownloader',
+    'New-ExecutionRestorePoint',
     'Get-ExecutionVerification',
     'Write-ExecutionLog',
     'Invoke-WorkstationUpdate'

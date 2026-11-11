@@ -28,6 +28,7 @@ export type GuideId =
   | "restart"
   | "no-applicable-update"
   | "permission-declined"
+  | "restore-point"
   | "other-failure";
 
 export const groups: { id: Guide["group"]; title: string }[] = [
@@ -66,6 +67,7 @@ export const guides: Guide[] = [
           ["Low risk", "A routine update from a trusted source, such as a newer version of an app through WinGet. Safe to install in a batch."],
           ["Medium risk", "Worth a look first, for example a jump to a new major version that may change how a tool behaves."],
           ["High risk", "It could break a setup you rely on. It never runs from here; its guide explains how to do it yourself."],
+          ["Restore point", "A snapshot of Windows settings, drivers and installed programs that you can go back to. Your own files aren't touched. It's optional when installing."],
           ["Can be undone", "You can go back to the previous version or setting if you need to. \"Cannot be undone\" means plan for it."],
           ["Needs you", "Something the audit found that has no safe command, so you do it yourself. Each one links to its guide."],
           ["Your standard", "The rules this PC is checked against, such as which Node.js versions to keep. Overview shows how many it meets."],
@@ -276,6 +278,23 @@ export const guides: Guide[] = [
     ],
   },
   {
+    id: "restore-point",
+    group: "failed",
+    title: "No restore point",
+    summary: "Windows couldn't make one, so nothing was installed.",
+    body: [
+      { text: "You asked for a restore point before installing. Windows couldn't create it, so nothing was installed. Usually System Protection is off for the system drive." },
+      {
+        steps: [
+          "Search Windows for \"Create a restore point\" and open it.",
+          "Select the system drive, usually C:, choose Configure, then Turn on system protection. Give it a few percent of the disk.",
+          "Choose the updates again in Updates and install.",
+        ],
+      },
+      { aside: "To install without one, clear Create a restore point first in the confirmation. To go back later, open the same window and choose System Restore." },
+    ],
+  },
+  {
     id: "other-failure",
     group: "failed",
     title: "Any other failure",
@@ -319,6 +338,7 @@ export function guideForFailure(reason: string | null): GuideId {
     [/Another installation|-1978334974|0x8A150102/i, "another-install"],
     [/restart Windows|-1978334967|0x8A150109/i, "restart"],
     [/no update that applies|-1978335189|0x8A15002B/i, "no-applicable-update"],
+    [/restore point/i, "restore-point"],
     [/permission/i, "permission-declined"],
   ];
   return causes.find(([pattern]) => pattern.test(text))?.[1] ?? "other-failure";

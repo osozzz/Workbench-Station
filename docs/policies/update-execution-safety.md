@@ -55,6 +55,13 @@ WinGet calls add `--accept-package-agreements --accept-source-agreements --disab
 - Each command runs with its output written to files and an empty standard input. The executor waits only for the process it started, so a child process left running by a tool (for example the Dart processes `flutter upgrade` starts) cannot keep an action running after the update finished, and a prompt receives end-of-input instead of waiting. On timeout the process is stopped and its partial output is kept in the log.
 - Interrupting with Ctrl+C stops after the current action. Later actions are not started.
 
+## Restore point (optional)
+
+- `-RestorePoint` (the desktop app's "Create a restore point first") creates a System Restore point with `Checkpoint-Computer` after every confirmation and before the first action. A dry run, an unconfirmed batch or a run with nothing runnable never creates one.
+- Windows creates at most one restore point a day through `Checkpoint-Computer`. When it skips one, the run goes ahead only if a restore point from the last 24 hours really exists, and the log says the install is covered by that one.
+- When no restore point can be created or confirmed, for example because System Protection is off, nothing runs: every selected action is recorded as skipped with the reason. The executor never turns System Protection on by itself.
+- The log records the outcome as `restorePoint` (`created`, `recent` or `failed`, the reason, and when the point was made). Restoring is the operator's decision, from Windows' System Restore.
+
 ## Preflight and failure explanations
 
 - Before anything runs, the executor lists running apps that block their own update (for example Git Bash windows for Git, Docker Desktop for Docker) and warns when WinGet still downloads through Delivery Optimization, which can stall at 0 bytes.
