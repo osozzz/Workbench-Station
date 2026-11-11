@@ -1,7 +1,7 @@
 import { Check, Folder, FolderPlus, Trash } from "@phosphor-icons/react";
 import { getVersion } from "@tauri-apps/api/app";
 import { useEffect, useState } from "react";
-import { inApp } from "../data";
+import { inApp, keepsRunning, setKeepsRunning } from "../data";
 import { useFolders } from "../folders";
 
 export function Settings({ onError }: { onError(message: string | null): void }) {
@@ -42,8 +42,33 @@ export function Settings({ onError }: { onError(message: string | null): void })
           </p>
         )}
       </section>
+      <WindowSettings />
       <About />
     </>
+  );
+}
+
+function WindowSettings() {
+  const [on, setOn] = useState(keepsRunning);
+  return (
+    <section className="pane settings">
+      <h2 className="section-title">Window</h2>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={on}
+          disabled={!inApp}
+          onChange={(e) => {
+            setOn(e.target.checked);
+            setKeepsRunning(e.target.checked);
+          }}
+        />
+        <span>
+          <b>Keep running in the notification area when closed</b>
+          Closing the window only hides it. Open it again from the icon near the clock, and choose Quit there to close the app.
+        </span>
+      </label>
+    </section>
   );
 }
 

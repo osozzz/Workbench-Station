@@ -109,6 +109,25 @@ export const releaseNotes = (pkg: string, version: string) =>
   invoke<{ notes: string | null; url: string | null }>("release_notes", { package: pkg, version });
 /** Opens an https link in the default browser. */
 export const openLink = (url: string) => invoke<void>("open_link", { url });
+/** Sets the notification area icon's tooltip. */
+export const setTrayStatus = (text: string) => (inApp ? invoke<void>("set_tray_status", { text }).catch(() => undefined) : Promise.resolve());
+
+/** Whether closing the window keeps the app in the notification area. Off when storage is unavailable. */
+export function keepsRunning(): boolean {
+  try {
+    return localStorage.getItem("closeToTray") === "on";
+  } catch {
+    return false;
+  }
+}
+
+export function setKeepsRunning(on: boolean) {
+  try {
+    localStorage.setItem("closeToTray", on ? "on" : "off");
+  } catch {
+    // Kept for this session only.
+  }
+}
 
 export const loadFolders = () => (inApp ? invoke<string[]>("read_data", { name: "folders" }) : Promise.resolve<string[]>([]));
 export const saveFolders = (folders: string[]) => invoke<void>("save_folders", { folders });
