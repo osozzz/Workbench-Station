@@ -7,6 +7,7 @@ All notable changes to this workstation toolkit are documented here.
 ### Added
 
 - Update holds: an update can wait a week or stay on the installed version. Holds live in `updates.holds` of the local configuration, and the plan leaves held actions out, so the command line, the tray count and the scheduled audit respect them too. In the desktop app, each update offers "Remind me in 7 days" and "Stay on …", and **On hold** lists them with **Resume**.
+- Compare in the desktop app: a new **Compare** view exports this PC's audit (a JSON report, with a note on what it contains) and compares it with an audit exported on another PC through `Compare-Workstations.ps1`. Differences are grouped by category and described in words, such as "Only on this PC", the two values, or the fields that changed. The last comparison shows again when you come back.
 
 ### Fixed
 

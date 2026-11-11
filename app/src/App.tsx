@@ -8,6 +8,7 @@ import { getCurrentWindow, ProgressBarStatus, UserAttentionType } from "@tauri-a
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import { Bar, viewOrder, type View } from "./Bar";
 import { GlassFilters } from "./glass";
+import { Compare } from "./views/Compare";
 import { Guides } from "./views/Guides";
 import { History } from "./views/History";
 import { Overview, type Run } from "./views/Overview";
@@ -211,7 +212,7 @@ export function App() {
               </div>
             </div>
           )}
-          {!error && snapshot === null && view !== "settings" && view !== "guides" && <Skeleton view={view} />}
+          {!error && snapshot === null && view !== "settings" && view !== "guides" && view !== "compare" && <Skeleton view={view} />}
           <div className="view" key={view}>
             {snapshot && view === "overview" && <Overview snapshot={snapshot} run={run} auditing={auditing} onAudit={audit} onOpenUpdates={() => setView("updates")} onError={(message) => setError(message === null ? null : { message })} />}
             {snapshot && view === "updates" && <Updates
@@ -233,6 +234,7 @@ export function App() {
                   setView("updates");
                 }}
               />}
+            {view === "compare" && <Compare />}
             {view === "guides" && <Guides guide={guide} onSelect={setGuide} />}
             {view === "settings" && <Settings onError={(message) => setError(message === null ? null : { message })} />}
           </div>
@@ -263,6 +265,7 @@ function Skeleton({ view }: { view: View }) {
     overview: [pane("hero", 1, "title-block"), pane("lists", 4, "none")],
     updates: [pane("list", 6, "title")],
     history: [pane("latest", 2, "title"), pane("earlier", 2, "none")],
+    compare: [],
     guides: [],
     settings: [],
   }[view];

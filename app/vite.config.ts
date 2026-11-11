@@ -16,6 +16,7 @@ function reportsBridge(): Plugin {
     configureServer(server) {
       server.middlewares.use("/__data/plan", (_req, res) => send(res, join(reports, "update-plan", "update-plan.json")));
       server.middlewares.use("/__data/evaluation", (_req, res) => send(res, join(reports, "evaluation", "evaluation.json")));
+      server.middlewares.use("/__data/comparison", (_req, res) => send(res, join(reports, "comparison", "comparison.json")));
       server.middlewares.use("/__data/holds", (_req, res) => {
         const config = join(reports, "..", "config", "workstation.local.json");
         res.setHeader("Content-Type", "application/json");
