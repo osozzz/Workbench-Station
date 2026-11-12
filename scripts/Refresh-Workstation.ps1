@@ -14,9 +14,10 @@ $ErrorActionPreference = 'Stop'
 
 if ([string]::IsNullOrWhiteSpace($DataDirectory)) { $DataDirectory = Join-Path $PSScriptRoot '..' }
 $reports = Join-Path $DataDirectory 'reports'
-$audit = & (Join-Path $PSScriptRoot 'Audit-Workstation.ps1') -OutputDirectory $reports -LocalConfigurationPath (Join-Path $DataDirectory 'config\workstation.local.json') -IncludeWingetInventory -OfflineVersionIntelligence:$OfflineVersionIntelligence -PassThru 6>$null
+$localConfiguration = Join-Path $DataDirectory 'config\workstation.local.json'
+$audit = & (Join-Path $PSScriptRoot 'Audit-Workstation.ps1') -OutputDirectory $reports -LocalConfigurationPath $localConfiguration -IncludeWingetInventory -OfflineVersionIntelligence:$OfflineVersionIntelligence -PassThru 6>$null
 
 & (Join-Path $PSScriptRoot 'Evaluate-Workstation.ps1') -Report $audit.JsonPath -OutputDirectory (Join-Path $reports 'evaluation') | Out-Null
-& (Join-Path $PSScriptRoot 'Plan-WorkstationUpdate.ps1') -Report $audit.JsonPath -OutputDirectory (Join-Path $reports 'update-plan') | Out-Null
+& (Join-Path $PSScriptRoot 'Plan-WorkstationUpdate.ps1') -Report $audit.JsonPath -OutputDirectory (Join-Path $reports 'update-plan') -LocalConfigurationPath $localConfiguration | Out-Null
 
 Write-Host "Refreshed from $($audit.JsonPath)"

@@ -20,7 +20,7 @@ Describe 'Refresh-Workstation' {
         $record = "Add-Content -LiteralPath '$script:calls' -Value (`$MyInvocation.MyCommand.Name + ' ' + (`$PSBoundParameters.Keys -join ','))"
         Set-Content -LiteralPath (Join-Path $scripts 'Audit-Workstation.ps1') -Value "[CmdletBinding()] param([string]`$OutputDirectory, [string]`$LocalConfigurationPath, [switch]`$IncludeWingetInventory, [switch]`$OfflineVersionIntelligence, [switch]`$PassThru)`n$record`nAdd-Content -LiteralPath '$script:calls' -Value `"`$OutputDirectory|`$LocalConfigurationPath`"`n[pscustomobject]@{ JsonPath = 'report.json' }"
         foreach ($name in @('Evaluate-Workstation.ps1', 'Plan-WorkstationUpdate.ps1')) {
-            Set-Content -LiteralPath (Join-Path $scripts $name) -Value "[CmdletBinding()] param([string]`$Report, [string]`$OutputDirectory)`n$record`nAdd-Content -LiteralPath '$script:calls' -Value `$Report"
+            Set-Content -LiteralPath (Join-Path $scripts $name) -Value "[CmdletBinding()] param([string]`$Report, [string]`$OutputDirectory, [string]`$LocalConfigurationPath)`n$record`nAdd-Content -LiteralPath '$script:calls' -Value (`$Report + `$(if (`$LocalConfigurationPath) { '|' + `$LocalConfigurationPath }))"
         }
     }
 
@@ -34,7 +34,7 @@ Describe 'Refresh-Workstation' {
         $lines[2] | Should -Match '^Evaluate-Workstation\.ps1'
         $lines[3] | Should -Be 'report.json'
         $lines[4] | Should -Match '^Plan-WorkstationUpdate\.ps1'
-        $lines[5] | Should -Be 'report.json'
+        $lines[5] | Should -BeLike 'report.json|*\config\workstation.local.json'
     }
 
     It 'keeps the reports and reads the project folders in the data directory the app passes' {
@@ -44,6 +44,8 @@ Describe 'Refresh-Workstation' {
         $lines = @(Get-Content -LiteralPath $script:calls)
         $lines[1] | Should -Be "$data\reports|$data\config\workstation.local.json"
         $lines[2] | Should -Match 'OutputDirectory'
+        # The plan reads the update holds from the same local configuration.
+        $lines[5] | Should -Be "report.json|$data\config\workstation.local.json"
     }
 }
 
@@ -96,7 +98,8 @@ Describe 'Update-Workstation -DataDirectory' {
         Set-Content -LiteralPath (Join-Path $scripts 'Core\Comparison.Core.psm1') -Value 'function ConvertFrom-WorkstationJson { param([string]$Json) $Json | ConvertFrom-Json }'
         Set-Content -LiteralPath (Join-Path $scripts 'Core\PolicyEvaluation.Core.psm1') -Value ''
         Set-Content -LiteralPath (Join-Path $scripts 'Core\UpdatePlan.Core.psm1') -Value @"
-function New-WorkstationUpdatePlan { param(`$Report, `$Policy, `$PolicyDigest) [pscustomobject]@{} }
+function Get-WorkstationHeldActionIds { param(`$LocalConfigurationPath) Add-Content -LiteralPath '$script:captured' -Value "holds `$LocalConfigurationPath"; 'winget-upgrade:Held.App' }
+function New-WorkstationUpdatePlan { param(`$Report, `$Policy, `$PolicyDigest, `$HeldActionIds) Add-Content -LiteralPath '$script:captured' -Value "held `$HeldActionIds"; [pscustomobject]@{} }
 function Write-WorkstationUpdatePlanOutputs {
     param(`$Plan, `$OutputDirectory)
     Add-Content -LiteralPath '$script:captured' -Value "plan `$OutputDirectory"
@@ -132,6 +135,9 @@ Add-Content -LiteralPath '$script:captured' -Value "audit `$OutputDirectory|`$Lo
         Get-Content -LiteralPath $script:captured | Should -Be @(
             "log $data\reports\update-log"
             "audit $data\reports|$data\config\workstation.local.json"
+            # The new plan keeps the update holds from the same local configuration.
+            "holds $data\config\workstation.local.json"
+            "held winget-upgrade:Held.App"
             "plan $data\reports\update-plan"
         )
     }

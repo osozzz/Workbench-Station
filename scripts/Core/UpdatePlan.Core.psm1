@@ -547,19 +547,62 @@ function Get-PlanWindowsUpdateActions {
     }
 }
 
+function Get-WorkstationHeldActionIds {
+    <#
+    .SYNOPSIS
+    The action IDs put on hold in the local configuration (updates.holds) that are still held today.
+
+    .DESCRIPTION
+    Each hold is { actionId, title, until }: until is the date the update comes back (yyyy-MM-dd), or null
+    to keep the current version until the hold is removed. A hold past its date, or one that can't be read,
+    is ignored, so a bad entry never hides an update for good. A missing file means no holds.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$LocalConfigurationPath,
+        [DateTime]$Today = [DateTime]::Today
+    )
+
+    if (-not (Test-Path -LiteralPath $LocalConfigurationPath -PathType Leaf)) { return @() }
+    try {
+        $configuration = ConvertFrom-WorkstationJson -Json (Get-Content -LiteralPath $LocalConfigurationPath -Encoding UTF8 -Raw -ErrorAction Stop)
+    }
+    catch {
+        Write-Warning "Update holds were ignored: the local configuration is not valid JSON ($($_.Exception.Message))."
+        return @()
+    }
+
+    $todayText = $Today.ToString('yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture)
+    $holds = Get-ComparisonOptionalPropertyValue -InputObject (Get-ComparisonOptionalPropertyValue -InputObject $configuration -Name 'updates') -Name 'holds'
+    $ids = foreach ($hold in @($holds)) {
+        $id = Get-ComparisonOptionalPropertyValue -InputObject $hold -Name 'actionId'
+        $until = Get-ComparisonOptionalPropertyValue -InputObject $hold -Name 'until'
+        if ($id -isnot [string] -or $id -notmatch $script:ActionIdPattern) { continue }
+        # yyyy-MM-dd text compares in date order.
+        if ($null -ne $until -and ($until -isnot [string] -or $until -notmatch '^\d{4}-\d{2}-\d{2}$' -or [string]::CompareOrdinal($todayText, $until) -ge 0)) { continue }
+        $id
+    }
+    return @($ids)
+}
+
 function New-WorkstationUpdatePlan {
     <#
     .SYNOPSIS
     Builds the ordered, read-only update plan for one audit report. Pure: runs nothing, changes nothing.
+    Actions in -HeldActionIds are left out, so nothing downstream can select them.
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][ValidateNotNull()][psobject]$Report,
         [Parameter(Mandatory)][ValidateNotNull()][psobject]$Policy,
-        [Parameter(Mandatory)][ValidatePattern('^[0-9a-f]{64}$')][string]$PolicyDigest
+        [Parameter(Mandatory)][ValidatePattern('^[0-9a-f]{64}$')][string]$PolicyDigest,
+        [AllowEmptyCollection()][string[]]$HeldActionIds = @()
     )
 
     $evaluation = New-WorkstationPolicyEvaluation -Report $Report -Policy $Policy -PolicyDigest $PolicyDigest
+    # No holds can arrive as $null: an empty array returned from a function unrolls to nothing.
+    $held = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($id in @($HeldActionIds)) { if ($id) { [void]$held.Add($id) } }
 
     $deferredChocolatey = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     $preferredManager = [string](Get-ComparisonOptionalPropertyValue -InputObject (Get-ComparisonOptionalPropertyValue -InputObject $Policy -Name 'windows') -Name 'applicationManager')
@@ -571,7 +614,7 @@ function New-WorkstationUpdatePlan {
 
     $actions = [System.Collections.Generic.List[object]]::new()
     foreach ($action in $candidates) {
-        if ($null -eq $action) { continue }
+        if ($null -eq $action -or $held.Contains([string]$action.actionId)) { continue }
         # Shared tools are upgraded through the policy's application manager only.
         if ($action.source.type -eq 'chocolatey' -and $deferredChocolatey.Contains(([string]$action.actionId).Substring('choco-upgrade:'.Length))) { continue }
         # wsl --update installs the latest release; WinGet's Microsoft.WSL package lags and would conflict.
@@ -654,6 +697,7 @@ function Write-WorkstationUpdatePlanOutputs {
 }
 
 Export-ModuleMember -Function @(
+    'Get-WorkstationHeldActionIds',
     'New-WorkstationUpdatePlan',
     'ConvertTo-WorkstationUpdatePlanText',
     'Write-WorkstationUpdatePlanOutputs'

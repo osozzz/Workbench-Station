@@ -4,6 +4,7 @@
 
 use serde_json::{json, Value};
 use std::{
+    ffi::OsStr,
     fs,
     os::windows::process::CommandExt,
     path::{Path, PathBuf},
@@ -73,6 +74,7 @@ fn read_data(app: AppHandle, name: String) -> Result<Value, String> {
             Ok(Value::Array(paths.iter().map(|p| read_json(p)).filter(|v| !v.is_null()).collect()))
         }
         "folders" => Ok(read_json(&local_config(&app)?).pointer("/projects/developmentRoots").cloned().unwrap_or_else(|| json!([]))),
+        "holds" => Ok(read_json(&local_config(&app)?).pointer("/updates/holds").cloned().unwrap_or_else(|| json!([]))),
         _ => Err(format!("Unknown data set: {name}")),
     }
 }
@@ -94,13 +96,71 @@ fn with_folders(mut config: Value, folders: &[String]) -> Result<Value, String> 
     Ok(config)
 }
 
-#[tauri::command]
-fn save_folders(app: AppHandle, folders: Vec<String>) -> Result<(), String> {
-    let path = local_config(&app)?;
+/// Changes one part of the local configuration. A file that can't be read is left as it is.
+fn update_config(app: &AppHandle, change: impl FnOnce(Value) -> Result<Value, String>) -> Result<(), String> {
+    let path = local_config(app)?;
     let current = if path.exists() { read_json(&path) } else { json!({ "schemaVersion": "1.0" }) };
-    let text = serde_json::to_string_pretty(&with_folders(current, &folders)?).map_err(|e| e.to_string())?;
+    let text = serde_json::to_string_pretty(&change(current)?).map_err(|e| e.to_string())?;
     fs::create_dir_all(path.with_file_name("")).map_err(|e| e.to_string())?;
     fs::write(&path, text).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn save_folders(app: AppHandle, folders: Vec<String>) -> Result<(), String> {
+    update_config(&app, |config| with_folders(config, &folders))
+}
+
+fn is_date(text: &str) -> bool {
+    text.len() == 10 && text.char_indices().all(|(i, c)| if i == 4 || i == 7 { c == '-' } else { c.is_ascii_digit() })
+}
+
+/// One update hold as the plan reads it: { actionId, title, until }, where until is the date it comes back
+/// (yyyy-MM-dd) or null to keep the current version. Anything else is refused.
+fn checked_hold(hold: &Value) -> Result<Value, String> {
+    let id = hold["actionId"].as_str().filter(|id| is_action_id(id));
+    let title = hold["title"].as_str().map(str::trim).filter(|t| !t.is_empty() && t.chars().count() <= 200);
+    let until = &hold["until"];
+    match (id, title, until.is_null() || until.as_str().is_some_and(is_date)) {
+        (Some(id), Some(title), true) => Ok(json!({ "actionId": id, "title": title, "until": until })),
+        _ => Err(format!("Not an update hold: {hold}")),
+    }
+}
+
+/// Replaces the update holds and keeps every other setting.
+fn with_holds(mut config: Value, holds: &[Value]) -> Result<Value, String> {
+    let holds = holds.iter().map(checked_hold).collect::<Result<Vec<_>, _>>()?;
+    let invalid = || "The settings file is not valid, so it was not changed.".to_string();
+    config
+        .as_object_mut()
+        .ok_or_else(invalid)?
+        .entry("updates")
+        .or_insert_with(|| json!({}))
+        .as_object_mut()
+        .ok_or_else(invalid)?
+        .insert("holds".to_string(), json!(holds));
+    Ok(config)
+}
+
+/// Saves the update holds, then rebuilds the plan from the last audit so a held update leaves the list
+/// at once. Nothing is audited or installed.
+#[tauri::command]
+async fn save_holds(app: AppHandle, holds: Vec<Value>) -> Result<(), Value> {
+    let unexpected = |e: String| failure("unexpected", e);
+    update_config(&app, |config| with_holds(config, &holds)).map_err(unexpected)?;
+    let reports = data_root(&app).map_err(unexpected)?.join("reports");
+    // The audit writes its JSON next to the Markdown, with the same name.
+    let Some(report) = latest_audit(&reports).map(|md| md.with_extension("json")).filter(|json| json.exists()) else {
+        return Ok(());
+    };
+    let script = root(&app).map_err(unexpected)?.join("scripts").join("Plan-WorkstationUpdate.ps1");
+    let config = local_config(&app).map_err(unexpected)?;
+    let output = reports.join("update-plan");
+    tauri::async_runtime::spawn_blocking(move || {
+        let args = [OsStr::new("-Report"), report.as_os_str(), OsStr::new("-OutputDirectory"), output.as_os_str(), OsStr::new("-LocalConfigurationPath"), config.as_os_str()];
+        run_hidden(&script, args, "plan-failed")
+    })
+    .await
+    .map_err(|e| failure("unexpected", e))?
 }
 
 /// Windows' folder picker. It blocks until closed, so it stays off the main thread.
@@ -117,31 +177,32 @@ async fn pick_folder(app: AppHandle) -> Result<Option<String>, String> {
     .map_err(|e| e.to_string())
 }
 
+/// Runs one of the engine's read-only scripts hidden and without elevation. output() also gives the child
+/// an empty stdin, so nothing in it can wait for input.
+fn run_hidden<'a>(script: &Path, args: impl IntoIterator<Item = &'a OsStr>, failed: &str) -> Result<(), Value> {
+    let output = Command::new("powershell.exe")
+        .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"])
+        .arg(script)
+        .args(args)
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .map_err(|e| failure("powershell-unavailable", e))?;
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(failure(failed, format!("Exit code {:?}. {}", output.status.code(), String::from_utf8_lossy(&output.stderr).trim())))
+    }
+}
+
 /// Audit, evaluation and plan. Read-only, so it runs hidden and without elevation.
 #[tauri::command]
 async fn refresh(app: AppHandle) -> Result<(), Value> {
     let unexpected = |e: String| failure("unexpected", e);
     let script = root(&app).map_err(unexpected)?.join("scripts").join("Refresh-Workstation.ps1");
     let data = data_root(&app).map_err(unexpected)?;
-    tauri::async_runtime::spawn_blocking(move || {
-        // output() also gives the child an empty stdin, so nothing in the audit can wait for input.
-        let output = Command::new("powershell.exe")
-            .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"])
-            .arg(&script)
-            .arg("-DataDirectory")
-            .arg(&data)
-            .creation_flags(CREATE_NO_WINDOW)
-            .output()
-            .map_err(|e| failure("powershell-unavailable", e))?;
-        if output.status.success() {
-            Ok(())
-        } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            Err(failure("audit-failed", format!("Exit code {:?}. {}", output.status.code(), stderr.trim())))
-        }
-    })
-    .await
-    .map_err(|e| failure("unexpected", e))?
+    tauri::async_runtime::spawn_blocking(move || run_hidden(&script, [OsStr::new("-DataDirectory"), data.as_os_str()], "audit-failed"))
+        .await
+        .map_err(|e| failure("unexpected", e))?
 }
 
 /// One readable file from the engine's own outputs: the audit, then the policy evaluation and the plan.
@@ -492,7 +553,7 @@ fn main() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![read_data, save_folders, pick_folder, refresh, update, export_report, release_notes, open_link, set_tray_status, launch_mode, audit_schedule, set_audit_schedule])
+        .invoke_handler(tauri::generate_handler![read_data, save_folders, save_holds, pick_folder, refresh, update, export_report, release_notes, open_link, set_tray_status, launch_mode, audit_schedule, set_audit_schedule])
         .run(tauri::generate_context!())
         .expect("the Workbench Station window could not start");
 }
@@ -554,6 +615,41 @@ mod tests {
         for folder in [r"C:\", r"D:\", r"\\server\share", "code", "C:"] {
             assert!(with_folders(json!({}), &[folder.to_string()]).is_err(), "{folder}");
         }
+    }
+
+    #[test]
+    fn saving_holds_keeps_the_other_settings_and_only_what_the_plan_reads() {
+        let config = json!({ "projects": { "developmentRoots": [r"C:\code"] }, "updates": { "holds": [{ "actionId": "old:x" }] } });
+        let holds = [
+            json!({ "actionId": "winget-upgrade:Git.Git", "title": " Upgrade Git ", "until": "2026-11-18", "extra": 1 }),
+            json!({ "actionId": "policy:node.defaultTrack", "title": "Upgrade Node.js", "until": null }),
+        ];
+        let saved = with_holds(config, &holds).unwrap();
+        assert_eq!(saved["projects"]["developmentRoots"], json!([r"C:\code"]));
+        assert_eq!(
+            saved["updates"]["holds"],
+            json!([
+                { "actionId": "winget-upgrade:Git.Git", "title": "Upgrade Git", "until": "2026-11-18" },
+                { "actionId": "policy:node.defaultTrack", "title": "Upgrade Node.js", "until": null }
+            ])
+        );
+        assert_eq!(with_holds(json!({}), &[]).unwrap()["updates"]["holds"], json!([]));
+    }
+
+    #[test]
+    fn a_hold_the_plan_cant_read_is_refused() {
+        let hold = |id: &str, title: &str, until: Value| json!({ "actionId": id, "title": title, "until": until });
+        for bad in [
+            hold("winget upgrade; rm", "x", Value::Null),
+            hold("winget-upgrade:Git.Git", " ", Value::Null),
+            hold("winget-upgrade:Git.Git", "x", json!("next week")),
+            hold("winget-upgrade:Git.Git", "x", json!("2026-1-18")),
+            hold("winget-upgrade:Git.Git", "x", json!(7)),
+            json!("winget-upgrade:Git.Git"),
+        ] {
+            assert!(with_holds(json!({}), &[bad.clone()]).is_err(), "{bad}");
+        }
+        assert!(with_holds(json!({ "updates": [] }), &[]).is_err());
     }
 
     #[test]

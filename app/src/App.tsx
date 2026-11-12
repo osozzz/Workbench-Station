@@ -2,7 +2,7 @@ import { CaretRight, WarningCircle } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 import { Command } from "./actions";
 import type { GuideId } from "./guides";
-import { describeFailure, inApp, keepsRunning, launchMode, loadLatestLog, loadSnapshot, readyCount, refresh, runUpdate, setTrayStatus, type AppError, type RunLog, type Snapshot } from "./data";
+import { describeFailure, inApp, keepsRunning, launchMode, loadLatestLog, loadSnapshot, readyCount, refresh, runUpdate, saveHolds, setTrayStatus, type AppError, type Hold, type RunLog, type Snapshot } from "./data";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow, ProgressBarStatus, UserAttentionType } from "@tauri-apps/api/window";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
@@ -64,6 +64,16 @@ export function App() {
     } finally {
       setAuditing(false);
     }
+  };
+
+  const changeHolds = async (holds: Hold[]) => {
+    setError(null);
+    try {
+      await saveHolds(holds);
+    } catch (reason) {
+      setError(describeFailure(reason));
+    }
+    await reload();
   };
 
   const install = async (actionIds: string[], restorePoint: boolean) => {
@@ -209,6 +219,7 @@ export function App() {
                 busy={run !== null || auditing}
                 preselected={preselected}
                 onInstall={install}
+                onHold={changeHolds}
                 onOpenOverview={() => setView("overview")}
                 onOpenGuide={openGuide}
               />}
