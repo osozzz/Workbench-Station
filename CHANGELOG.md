@@ -8,6 +8,7 @@ All notable changes to this workstation toolkit are documented here.
 
 - Update holds: an update can wait a week or stay on the installed version. Holds live in `updates.holds` of the local configuration, and the plan leaves held actions out, so the command line, the tray count and the scheduled audit respect them too. In the desktop app, each update offers "Remind me in 7 days" and "Stay on …", and **On hold** lists them with **Resume**.
 - Compare in the desktop app: a new **Compare** view exports this PC's audit (a JSON report, with a note on what it contains) and compares it with an audit exported on another PC through `Compare-Workstations.ps1`. Differences are grouped by category and described in words, such as "Only on this PC", the two values, or the fields that changed. The last comparison shows again when you come back.
+- The desktop app in Spanish and English. It follows Windows' language, and **Settings > Language** can pick one. Views, buttons, tooltips, confirmations, errors, notifications, the tray icon and the guides are translated. Dates and relative times follow the language. Each update's title and message still come from the engine in English (#276). `pnpm build` runs `scripts/check-i18n.mjs`, which fails when a text has no Spanish or a translation changes a placeholder.
 
 ### Fixed
 

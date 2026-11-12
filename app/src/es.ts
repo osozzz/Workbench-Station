@@ -1,0 +1,308 @@
+// Spanish for the app's own text. The key is the English text exactly as written in src/, so a change to
+// the English needs the same change here; scripts/check-i18n.mjs finds any that's missing. Voice: tú,
+// plain and warm (DESIGN.md), and Windows' own Spanish names for its menus.
+export const es: Record<string, string> = {
+  // Navigation and window
+  Overview: "Resumen",
+  Updates: "Actualizaciones",
+  History: "Historial",
+  Compare: "Comparar",
+  Guides: "Guías",
+  Settings: "Ajustes",
+  Sections: "Secciones",
+  Minimize: "Minimizar",
+  Maximize: "Maximizar",
+  Restore: "Restaurar",
+  Close: "Cerrar",
+  "This PC": "Este equipo",
+  "Open Workbench Station": "Abrir Workbench Station",
+  Quit: "Salir",
+  "installing updates": "instalando actualizaciones",
+  "audit this PC to see updates": "audita este equipo para ver actualizaciones",
+  "up to date": "al día",
+
+  // Shared
+  "Low risk": "Riesgo bajo",
+  "Medium risk": "Riesgo medio",
+  "High risk": "Riesgo alto",
+  "Needs you": "Te necesita",
+  "Your standard": "Tu estándar",
+  "Developer tools": "Herramientas de desarrollo",
+  Editors: "Editores",
+  Duplicates: "Duplicados",
+  "npm and pnpm": "npm y pnpm",
+  "Copy command": "Copiar comando",
+  Copy: "Copiar",
+  Copied: "Copiado",
+  to: "a",
+  Details: "Detalles",
+  "Copy details": "Copiar detalles",
+  "less than an hour ago": "hace menos de una hora",
+  "Audit this PC": "Auditar este equipo",
+  "Add folder": "Agregar carpeta",
+  "Remove folder": "Quitar carpeta",
+  "Remove {folder}": "Quitar {folder}",
+  Cancel: "Cancelar",
+
+  // Errors
+  "The audit stopped before it finished. Check that this PC is online, then audit again.":
+    "La auditoría se detuvo antes de terminar. Comprueba que este equipo tenga internet y vuelve a auditar.",
+  "Windows permission was declined, so nothing was installed. Install again and choose Yes when Windows asks.":
+    "Se rechazó el permiso de Windows, así que no se instaló nada. Vuelve a instalar y elige Sí cuando Windows pregunte.",
+  "The install stopped early. History shows what was installed. Audit this PC again before installing the rest.":
+    "La instalación se detuvo antes de tiempo. Historial muestra lo que se instaló. Vuelve a auditar este equipo antes de instalar el resto.",
+  "That selection can't be installed. Audit this PC again, then choose the updates once more.":
+    "Esa selección no se puede instalar. Vuelve a auditar este equipo y elige las actualizaciones otra vez.",
+  "Windows PowerShell didn't start, so Workbench Station can't audit or install. Check that PowerShell isn't blocked on this PC.":
+    "Windows PowerShell no se inició, así que Workbench Station no puede auditar ni instalar. Comprueba que PowerShell no esté bloqueado en este equipo.",
+  "Audit this PC first, so there's something to export or compare.": "Audita este equipo primero, para tener algo que exportar o comparar.",
+  "That file couldn't be compared. Choose an audit exported from Workbench Station on the other PC (a .json file).":
+    "Ese archivo no se pudo comparar. Elige una auditoría exportada desde Workbench Station en el otro equipo (un archivo .json).",
+  "The change was saved, but the list of updates couldn't be rebuilt. Audit this PC again to refresh it.":
+    "El cambio se guardó, pero la lista de actualizaciones no se pudo rehacer. Vuelve a auditar este equipo para actualizarla.",
+  "{detail} is too broad to scan. Choose a folder inside the drive.": "{detail} es demasiado amplio para revisarlo. Elige una carpeta dentro de la unidad.",
+  "This PC's settings file can't be read, so it wasn't changed. Copy the details below and report it.":
+    "El archivo de ajustes de este equipo no se puede leer, así que no se cambió. Copia los detalles de abajo y repórtalo.",
+  "Something unexpected stopped Workbench Station. Copy the details below and report it.":
+    "Algo inesperado detuvo Workbench Station. Copia los detalles de abajo y repórtalo.",
+  "The last audit's reports could not be read. Audit this PC again to rebuild them.":
+    "No se pudieron leer los informes de la última auditoría. Vuelve a auditar este equipo para rehacerlos.",
+  "Nothing was installed. {reason}": "No se instaló nada. {reason}",
+  "Audit this PC and try again.": "Audita este equipo e inténtalo de nuevo.",
+
+  // Notifications and closing
+  "Workbench Station audited this PC. Open it to review and install them.": "Workbench Station auditó este equipo. Ábrelo para revisarlas e instalarlas.",
+  "The scheduled audit didn't finish": "La auditoría programada no terminó",
+  "Updates installed": "Actualizaciones instaladas",
+  "Some updates didn't install": "Algunas actualizaciones no se instalaron",
+  "{installed} installed. Open Workbench Station to see the details in History.": "Instaladas: {installed}. Abre Workbench Station para ver los detalles en Historial.",
+  "{installed} installed, {failed} failed. Open Workbench Station to see the details in History.":
+    "Instaladas: {installed}, fallidas: {failed}. Abre Workbench Station para ver los detalles en Historial.",
+  "The install keeps running if you close Workbench Station": "La instalación sigue aunque cierres Workbench Station",
+  "Updates that already started finish on their own. Open the app again later and History shows how each one went.":
+    "Las actualizaciones que ya empezaron terminan solas. Abre la aplicación más tarde y Historial te mostrará cómo fue cada una.",
+  "Close anyway": "Cerrar de todos modos",
+  "Keep open": "Mantener abierta",
+  "Reading the last audit": "Leyendo la última auditoría",
+
+  // Overview
+  "Each mark is one update. Hover over a mark to see which.": "Cada marca es una actualización. Pasa el cursor por una marca para ver cuál.",
+  Installed: "Instalada",
+  Failed: "Falló",
+  Skipped: "Omitida",
+  Waiting: "En espera",
+  Installing: "Instalando",
+  "Auditing, this takes a few minutes": "Auditando, tarda unos minutos",
+  "Checking what was installed": "Comprobando lo que se instaló",
+  "Installing {current} of {total}": "Instalando {current} de {total}",
+  "Auditing this PC again. This takes a few minutes.": "Auditando este equipo otra vez. Tarda unos minutos.",
+  "Creating a restore point first. This can take a minute.": "Creando primero un punto de restauración. Puede tardar un minuto.",
+  "Starting the next update.": "Empezando la siguiente actualización.",
+  "You can keep working; some apps may close while they update.": "Puedes seguir trabajando; algunas aplicaciones pueden cerrarse mientras se actualizan.",
+  "Waiting for Windows to give permission.": "Esperando el permiso de Windows.",
+  "Everything that can update is up to date": "Todo lo que se puede actualizar está al día",
+  "Last audit {age}.": "Última auditoría: {age}.",
+  "Export report": "Exportar informe",
+  "Review updates": "Revisar actualizaciones",
+  "Report saved to {path}. It includes this PC's name, its apps and versions, and folder paths, so share it only with people you trust.":
+    "Informe guardado en {path}. Incluye el nombre de este equipo, sus aplicaciones y versiones, y rutas de carpetas, así que compártelo solo con personas de confianza.",
+  "This list is more than a day old, so updates are locked until you audit again.":
+    "Esta lista tiene más de un día, así que las actualizaciones están bloqueadas hasta que vuelvas a auditar.",
+  "Close these apps, or their updates will fail: {apps}.": "Cierra estas aplicaciones o sus actualizaciones fallarán: {apps}.",
+  "See all {n}": "Ver las {n}",
+  "Nothing needs you right now.": "Nada te necesita por ahora.",
+  "Audit this PC to compare it with your standard.": "Audita este equipo para compararlo con tu estándar.",
+  "Keep this PC up to date": "Mantén este equipo al día",
+  "Workbench Station finds what can be updated on this PC, shows how risky each update is, and installs only what you confirm.":
+    "Workbench Station encuentra lo que se puede actualizar en este equipo, muestra qué tan arriesgada es cada actualización e instala solo lo que confirmes.",
+  "Nothing is installed until you confirm it.": "No se instala nada hasta que lo confirmes.",
+  "High-risk and manual updates never run from here.": "Las actualizaciones de riesgo alto y las manuales nunca se ejecutan desde aquí.",
+  "Reports stay on this PC.": "Los informes se quedan en este equipo.",
+  Done: "Hecho",
+  "Choose your project folders": "Elige tus carpetas de proyectos",
+  "Optional. The audit looks for projects and Git repositories only in these folders, never across a whole drive.":
+    "Opcional. La auditoría busca proyectos y repositorios Git solo en estas carpetas, nunca en una unidad completa.",
+  "Add another folder": "Agregar otra carpeta",
+  "Reads the apps, tools, and settings on this PC and checks online for newer versions. It changes nothing and takes about three minutes.":
+    "Lee las aplicaciones, herramientas y configuración de este equipo y busca en línea versiones más nuevas. No cambia nada y tarda unos tres minutos.",
+  "Review and install": "Revisa e instala",
+  "Pick the updates you want and see the exact command for each one first. Windows asks for permission once, then this PC is audited again to check the result.":
+    "Elige las actualizaciones que quieras y mira primero el comando exacto de cada una. Windows pide permiso una vez y luego se audita este equipo otra vez para comprobar el resultado.",
+
+  // Updates
+  "The WinGet catalog couldn't be reached, so what changes isn't known. Try again later.":
+    "No se pudo consultar el catálogo de WinGet, así que no se sabe qué cambia. Inténtalo más tarde.",
+  "Looking up what changes…": "Buscando qué cambia…",
+  "What changes in {version}": "Qué cambia en {version}",
+  "Release notes on {site}": "Notas de la versión en {site}",
+  "The WinGet catalog has no notes for {version}.": "El catálogo de WinGet no tiene notas para {version}.",
+  "Can be undone": "Se puede deshacer",
+  "Cannot be undone": "No se puede deshacer",
+  "can be undone": "se puede deshacer",
+  "cannot be undone": "no se puede deshacer",
+  "This one has no command. You do it yourself.": "Esta no tiene comando. La haces tú.",
+  "High-risk updates do not run from here.": "Las actualizaciones de riesgo alto no se ejecutan desde aquí.",
+  "How do I do this?": "¿Cómo lo hago?",
+  "Remind me in 7 days": "Recordármela en 7 días",
+  "Stay on {version}": "Quedarme en {version}",
+  "Hide until I resume it": "Ocultarla hasta que la reanude",
+  Ready: "Listas",
+  "On hold": "En pausa",
+  "Updates appear here after the first audit of this PC.": "Las actualizaciones aparecen aquí después de la primera auditoría de este equipo.",
+  "Go to Overview": "Ir a Resumen",
+  "Filter updates": "Filtrar actualizaciones",
+  "This list is more than a day old. Audit this PC from Overview to install updates.":
+    "Esta lista tiene más de un día. Audita este equipo desde Resumen para instalar actualizaciones.",
+  "Nothing is on hold. Open an update to be reminded of it in a week, or to stay on the version you have.":
+    "No hay nada en pausa. Abre una actualización para que te la recuerde en una semana, o para quedarte en la versión que tienes.",
+  "Back on {day}": "Vuelve el {day}",
+  "Until you resume it": "Hasta que la reanudes",
+  Resume: "Reanudar",
+  "No updates in this group.": "No hay actualizaciones en este grupo.",
+  "Select {title}": "Seleccionar {title}",
+  "Selected update": "Actualización seleccionada",
+  "Choose updates to install": "Elige las actualizaciones que quieres instalar",
+  Clear: "Borrar selección",
+  "Select all shown": "Seleccionar las que se ven",
+  "Install {n} selected": "Instalar seleccionadas ({n})",
+  "Windows asks for permission once. Close the apps being updated first, or their updates can fail. If one fails, the rest still run.":
+    "Windows pide permiso una vez. Cierra antes las aplicaciones que se van a actualizar, o sus actualizaciones pueden fallar. Si una falla, las demás se ejecutan igual.",
+  "Installing accepts the package and source agreements of the WinGet packages listed.":
+    "Al instalar aceptas los acuerdos de paquete y de origen de los paquetes de WinGet de la lista.",
+  "When it finishes, this PC is audited again to verify the result.": "Al terminar, se audita este equipo otra vez para comprobar el resultado.",
+  "Create a restore point first": "Crear primero un punto de restauración",
+  "Lets you take this PC back to how it is now. Windows makes at most one a day and needs System Protection on; if it can't, nothing is installed.":
+    "Te permite devolver este equipo a como está ahora. Windows crea como máximo uno al día y necesita la Protección del sistema activada; si no puede, no se instala nada.",
+
+  // History
+  "A restore point was made on {at} before installing.": "Se creó un punto de restauración el {at} antes de instalar.",
+  "A restore point was made before installing.": "Se creó un punto de restauración antes de instalar.",
+  "Covered by the restore point Windows made on {at}; it makes at most one a day.":
+    "Cubierta por el punto de restauración que Windows creó el {at}; crea como máximo uno al día.",
+  "The restore point was still being made when this run stopped.": "El punto de restauración todavía se estaba creando cuando se detuvo esta instalación.",
+  "Windows could not create a restore point, so nothing was installed.": "Windows no pudo crear un punto de restauración, así que no se instaló nada.",
+  "What to do": "Qué hacer",
+  "No updates have been installed from here yet. Each install you run shows up here, with what worked and what didn't.":
+    "Todavía no se ha instalado nada desde aquí. Cada instalación que hagas aparece aquí, con lo que funcionó y lo que no.",
+  "Choose updates": "Elegir actualizaciones",
+  // Labels rather than "1 instaladas", so the words agree with any number.
+  "{installed} installed, {failed} failed, {skipped} skipped": "Instaladas: {installed} · Fallidas: {failed} · Omitidas: {skipped}",
+  Retry: "Reintentar",
+
+  // Compare
+  Apps: "Aplicaciones",
+  Tools: "Herramientas",
+  Versions: "Versiones",
+  "Environment variables": "Variables de entorno",
+  Projects: "Proyectos",
+  "Git repositories": "Repositorios Git",
+  Checks: "Revisiones",
+  "Installed version": "Versión instalada",
+  "Update available": "Actualización disponible",
+  "Has an update": "Tiene actualización",
+  "Update check": "Búsqueda de actualizaciones",
+  "App list": "Lista de aplicaciones",
+  "Command found": "Comando encontrado",
+  "Copy installed": "Copia instalada",
+  State: "Estado",
+  "Check result": "Resultado de la revisión",
+  "Version in use": "Versión en uso",
+  "Copy found": "Copia encontrada",
+  "Latest stable release": "Última versión estable",
+  "Latest current release": "Última versión Current",
+  "Latest LTS release": "Última versión LTS",
+  "Latest-version check": "Revisión de la última versión",
+  Value: "Valor",
+  Entries: "Entradas",
+  Order: "Orden",
+  "Repeated entries": "Entradas repetidas",
+  "Folders that don't exist": "Carpetas que no existen",
+  "Entries in both machine and user PATH": "Entradas en el PATH del equipo y del usuario",
+  "Which copy runs": "Qué copia se ejecuta",
+  Branches: "Ramas",
+  "Current branch": "Rama actual",
+  "Ahead or behind": "Adelante o atrás",
+  "Uncommitted changes": "Cambios sin confirmar",
+  "Could be read": "Se pudo leer",
+  "Machine PATH": "PATH del equipo",
+  "User PATH": "PATH del usuario",
+  "Process PATH": "PATH del proceso",
+  "Machine and user PATH": "PATH del equipo y del usuario",
+  "A Git repository": "Un repositorio Git",
+  "{version} at {path}": "{version} en {path}",
+  none: "ninguno",
+  "This PC: {value}": "Este equipo: {value}",
+  "the other PC": "el otro equipo",
+  "Only on this PC": "Solo en este equipo",
+  "Only on {other}": "Solo en {other}",
+  Different: "Diferente",
+  "Unknown on one PC": "Desconocido en un equipo",
+  "Not checked on one PC": "Sin revisar en un equipo",
+  "Doesn't apply on one PC": "No aplica en un equipo",
+  All: "Todas",
+  "Only here": "Solo aquí",
+  "Only there": "Solo allá",
+  "Filter differences": "Filtrar diferencias",
+  "See how this PC differs from another one: apps, tools and versions, PATH, projects and Git. On the other PC, export its audit from Workbench Station, then compare with that file here. Nothing is installed or changed on either PC.":
+    "Mira en qué se diferencia este equipo de otro: aplicaciones, herramientas y versiones, PATH, proyectos y Git. En el otro equipo, exporta su auditoría desde Workbench Station y luego compara aquí con ese archivo. No se instala ni se cambia nada en ninguno de los dos.",
+  "Comparing…": "Comparando…",
+  "Compare with another PC": "Comparar con otro equipo",
+  "Export this PC's audit": "Exportar la auditoría de este equipo",
+  "The exported file has this PC's name, the folders of its tools and projects, and its Git branch names. Share it only with people you trust.":
+    "El archivo exportado tiene el nombre de este equipo, las carpetas de sus herramientas y proyectos, y los nombres de sus ramas Git. Compártelo solo con personas de confianza.",
+  "Audit saved to {path}. Open Workbench Station on the other PC and compare with this file.":
+    "Auditoría guardada en {path}. Abre Workbench Station en el otro equipo y compara con este archivo.",
+  Differences: "Diferencias",
+  "{here} and {there} have no differences.": "{here} y {there} no tienen diferencias.",
+  "{other} was audited {otherAge}; this PC, {thisAge}.": "{other} se auditó {otherAge}; este equipo, {thisAge}.",
+  "No differences of this kind.": "No hay diferencias de este tipo.",
+
+  // Guides
+  "Getting started": "Primeros pasos",
+  "Updates that need you": "Actualizaciones que te necesitan",
+  "When an update fails": "Cuando una actualización falla",
+
+  // Settings
+  "Project folders": "Carpetas de proyectos",
+  "The audit checks projects and Git repositories in these folders, and nowhere else.": "La auditoría revisa proyectos y repositorios Git en estas carpetas, y en ningún otro lugar.",
+  "No folders yet, so the audit skips projects and Git repositories.": "Todavía no hay carpetas, así que la auditoría omite proyectos y repositorios Git.",
+  "Saved. Audit this PC from Overview to apply this change.": "Guardado. Audita este equipo desde Resumen para aplicar este cambio.",
+  "Windows couldn't change the automatic audit.": "Windows no pudo cambiar la auditoría automática.",
+  Off: "Desactivada",
+  Daily: "Diaria",
+  Weekly: "Semanal",
+  "Automatic audit": "Auditoría automática",
+  "Audits this PC in the background and tells you when updates are ready. It only reads; installing still waits for you.":
+    "Audita este equipo en segundo plano y te avisa cuando hay actualizaciones listas. Solo lee; instalar sigue esperándote.",
+  "Every day at noon, or as soon as this PC is on after that.": "Todos los días al mediodía, o en cuanto este equipo se encienda después.",
+  "Every Monday at noon, or as soon as this PC is on after that.": "Todos los lunes al mediodía, o en cuanto este equipo se encienda después.",
+  "Same as Windows": "Igual que Windows",
+  Language: "Idioma",
+  "The names and messages of each update come from the audit and stay in English.": "Los nombres y mensajes de cada actualización vienen de la auditoría y siguen en inglés.",
+  Window: "Ventana",
+  "Keep running in the notification area when closed": "Seguir en el área de notificación al cerrar",
+  "Closing the window only hides it. Open it again from the icon near the clock, and choose Quit there to close the app.":
+    "Cerrar la ventana solo la oculta. Ábrela otra vez desde el icono junto al reloj, y elige Salir ahí para cerrar la aplicación.",
+  "Version {version}": "Versión {version}",
+  "Version not available in this preview": "Versión no disponible en esta vista previa",
+  Publisher: "Editor",
+  License: "Licencia",
+  "Source code": "Código fuente",
+  "Your data": "Tus datos",
+  "Settings and reports stay on this PC, in %LOCALAPPDATA%\\com.osozzz.workbenchstation. Uninstalling from Windows Settings can delete them too.":
+    "Los ajustes y los informes se quedan en este equipo, en %LOCALAPPDATA%\\com.osozzz.workbenchstation. Al desinstalar desde Configuración de Windows también puedes borrarlos.",
+};
+
+/** Count-dependent text, keyed by the English "other" form. */
+export const esPlurals: Record<string, { one: string; other: string }> = {
+  "{n} updates ready to install": { one: "{n} actualización lista para instalar", other: "{n} actualizaciones listas para instalar" },
+  "{n} more need you.": { one: "{n} más te necesita.", other: "{n} más te necesitan." },
+  "rules met, {missing} not met": { one: "regla cumplida, {missing} sin cumplir", other: "reglas cumplidas, {missing} sin cumplir" },
+  "{n} selected": { one: "{n} seleccionada", other: "{n} seleccionadas" },
+  "Install {n} updates?": { one: "¿Instalar {n} actualización?", other: "¿Instalar {n} actualizaciones?" },
+  "Install {n} updates": { one: "Instalar {n} actualización", other: "Instalar {n} actualizaciones" },
+  "{n} updates are ready": { one: "{n} actualización está lista", other: "{n} actualizaciones están listas" },
+  "{n} updates ready": { one: "{n} actualización lista", other: "{n} actualizaciones listas" },
+  "{n} entries": { one: "{n} entrada", other: "{n} entradas" },
+  "{here} and {there}: {n} differences.": { one: "{here} y {there}: {n} diferencia.", other: "{here} y {there}: {n} diferencias." },
+};

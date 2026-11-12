@@ -8,6 +8,7 @@ import { getCurrentWindow, ProgressBarStatus, UserAttentionType } from "@tauri-a
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import { Bar, viewOrder, type View } from "./Bar";
 import { GlassFilters } from "./glass";
+import { chooseLanguage, language, t, tn, type Language } from "./i18n";
 import { Compare } from "./views/Compare";
 import { Guides } from "./views/Guides";
 import { History } from "./views/History";
@@ -23,6 +24,12 @@ export function App() {
   const [run, setRun] = useState<Run | null>(null);
   const [guide, setGuide] = useState<GuideId>("how-it-works");
   const [preselected, setPreselected] = useState<string[]>([]);
+  // Changing it re-renders the app in the new language.
+  const [lang, setLang] = useState(language);
+  const changeLanguage = (choice: Language | "windows") => {
+    chooseLanguage(choice);
+    setLang(language());
+  };
   const openGuide = (id: GuideId) => {
     setGuide(id);
     setView("guides");
@@ -30,7 +37,7 @@ export function App() {
 
   const reload = () =>
     loadSnapshot().then(setSnapshot, (reason) =>
-      setError(describeFailure(reason, "The last audit's reports could not be read. Audit this PC again to rebuild them.")),
+      setError(describeFailure(reason, t("The last audit's reports could not be read. Audit this PC again to rebuild them."))),
     );
   useEffect(() => {
     void reload();
@@ -109,7 +116,7 @@ export function App() {
         void tellWhenAway(log);
       } else {
         const reason = entries.find((a) => a.reason)?.reason;
-        setError({ message: `Nothing was installed. ${reason ?? "Audit this PC and try again."}` });
+        setError({ message: t("Nothing was installed. {reason}", { reason: reason ?? t("Audit this PC and try again.") }) });
       }
     } catch (reason) {
       setError(describeFailure(reason));
@@ -137,12 +144,12 @@ export function App() {
       setSnapshot(next);
       const ready = readyCount(next.plan);
       if (ready > 0 && (await isAway())) {
-        await notify(`${ready} ${ready === 1 ? "update is" : "updates are"} ready`, "Workbench Station audited this PC. Open it to review and install them.");
+        await notify(tn(ready, "{n} update is ready", "{n} updates are ready"), t("Workbench Station audited this PC. Open it to review and install them."));
       }
     } catch (reason) {
       const failure = describeFailure(reason);
       setError(failure);
-      if (await isAway()) await notify("The scheduled audit didn't finish", failure.message);
+      if (await isAway()) await notify(t("The scheduled audit didn't finish"), failure.message);
     } finally {
       setAuditing(false);
     }
@@ -175,20 +182,20 @@ export function App() {
 
   useEffect(() => {
     const status = installing
-      ? "installing updates"
+      ? t("installing updates")
       : !plan
-        ? "audit this PC to see updates"
+        ? t("audit this PC to see updates")
         : ready === 0
-          ? "up to date"
-          : `${ready} ${ready === 1 ? "update" : "updates"} ready`;
+          ? t("up to date")
+          : tn(ready, "{n} update ready", "{n} updates ready");
     void setTrayStatus(`Workbench Station: ${status}`);
-  }, [installing, plan, ready]);
+  }, [installing, plan, ready, lang]);
 
   return (
     <>
       <GlassFilters />
       <div className="scene" aria-hidden="true" />
-      <Bar host={plan?.report.host.name ?? "This PC"} view={view} ready={ready} onSelect={(next) => {
+      <Bar key={lang} host={plan?.report.host.name ?? t("This PC")} view={view} ready={ready} onSelect={(next) => {
           setPreselected([]);
           setView(next);
         }}
@@ -204,9 +211,9 @@ export function App() {
                   <details>
                     <summary>
                       <CaretRight size={14} weight="bold" aria-hidden="true" />
-                      Details
+                      {t("Details")}
                     </summary>
-                    <Command text={error.detail} label="Copy details" />
+                    <Command text={error.detail} label={t("Copy details")} />
                   </details>
                 )}
               </div>
@@ -214,7 +221,7 @@ export function App() {
           )}
           {!error && snapshot === null && view !== "settings" && view !== "guides" && view !== "compare" && <Skeleton view={view} />}
           <div className="view" key={view}>
-            {snapshot && view === "overview" && <Overview snapshot={snapshot} run={run} auditing={auditing} onAudit={audit} onOpenUpdates={() => setView("updates")} onError={(message) => setError(message === null ? null : { message })} />}
+            {snapshot && view === "overview" && <Overview snapshot={snapshot} run={run} auditing={auditing} onAudit={audit} onOpenUpdates={() => setView("updates")} onError={setError} />}
             {snapshot && view === "updates" && <Updates
                 snapshot={snapshot}
                 busy={run !== null || auditing}
@@ -236,16 +243,16 @@ export function App() {
               />}
             {view === "compare" && <Compare />}
             {view === "guides" && <Guides guide={guide} onSelect={setGuide} />}
-            {view === "settings" && <Settings onError={(message) => setError(message === null ? null : { message })} />}
+            {view === "settings" && <Settings onError={setError} onLanguage={changeLanguage} />}
           </div>
         </div>
       </main>
       <dialog className="sheet close-guard" ref={closing} aria-labelledby="close-title">
-        <h2 className="sheet-title" id="close-title">The install keeps running if you close Workbench Station</h2>
-        <p>Updates that already started finish on their own. Open the app again later and History shows how each one went.</p>
+        <h2 className="sheet-title" id="close-title">{t("The install keeps running if you close Workbench Station")}</h2>
+        <p>{t("Updates that already started finish on their own. Open the app again later and History shows how each one went.")}</p>
         <div className="close-guard-actions">
-          <button className="button" onClick={() => void getCurrentWindow().destroy()}>Close anyway</button>
-          <button className="button button-primary" onClick={() => closing.current?.close()}>Keep open</button>
+          <button className="button" onClick={() => void getCurrentWindow().destroy()}>{t("Close anyway")}</button>
+          <button className="button button-primary" onClick={() => closing.current?.close()}>{t("Keep open")}</button>
         </div>
       </dialog>
     </>
@@ -270,7 +277,7 @@ function Skeleton({ view }: { view: View }) {
     settings: [],
   }[view];
   return (
-    <div className="view" role="status" aria-label="Reading the last audit">
+    <div className="view" role="status" aria-label={t("Reading the last audit")}>
       {panes}
     </div>
   );
@@ -288,8 +295,10 @@ async function tellWhenAway(log: RunLog) {
   const failed = log.actions.filter((a) => a.result === "failed").length;
   void getCurrentWindow().requestUserAttention(UserAttentionType.Informational);
   await notify(
-    failed === 0 ? "Updates installed" : "Some updates didn't install",
-    `${installed} installed${failed ? `, ${failed} failed` : ""}. Open Workbench Station to see the details in History.`,
+    failed === 0 ? t("Updates installed") : t("Some updates didn't install"),
+    failed === 0
+      ? t("{installed} installed. Open Workbench Station to see the details in History.", { installed })
+      : t("{installed} installed, {failed} failed. Open Workbench Station to see the details in History.", { installed, failed }),
   );
 }
 

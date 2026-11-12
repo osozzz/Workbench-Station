@@ -1,6 +1,12 @@
 import { ArrowRight, Check, Copy } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
-import { sourceOrder, type Action } from "./data";
+import { sourceOrder, type Action, type Risk } from "./data";
+import { msg, t } from "./i18n";
+
+const riskLabels: Record<Risk, string> = { low: msg("Low risk"), medium: msg("Medium risk"), high: msg("High risk") };
+
+/** "Low risk", "Medium risk" or "High risk", in the app's language. */
+export const riskLabel = (risk: Risk) => t(riskLabels[risk]);
 
 export function groupBySource(actions: Action[]) {
   const groups = new Map<string, Action[]>();
@@ -11,9 +17,10 @@ export function groupBySource(actions: Action[]) {
 }
 
 /** An exact command, shown before it runs, with a button to copy it. */
-export function Command({ text, label = "Copy command" }: { text: string; label?: string }) {
+export function Command({ text, label }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   const code = useRef<HTMLElement>(null);
+  const tip = copied ? t("Copied") : (label ?? t("Copy command"));
   useEffect(() => {
     if (!copied) return;
     const timer = window.setTimeout(() => setCopied(false), 1600);
@@ -25,8 +32,8 @@ export function Command({ text, label = "Copy command" }: { text: string; label?
       <code ref={code}>{text}</code>
       <button
         className="command-copy"
-        aria-label={copied ? "Copied" : label}
-        data-tip={copied ? "Copied" : label}
+        aria-label={tip}
+        data-tip={tip}
         onClick={() =>
           navigator.clipboard.writeText(text).then(
             () => setCopied(true),
@@ -45,7 +52,7 @@ export function versionsOf(action: Action) {
   if (!action.currentVersion && !action.targetVersion) return null;
   return (
     <span className="versions">
-      {action.currentVersion} <ArrowRight size={12} aria-label="to" /> <b>{action.targetVersion}</b>
+      {action.currentVersion} <ArrowRight size={12} aria-label={t("to")} /> <b>{action.targetVersion}</b>
     </span>
   );
 }

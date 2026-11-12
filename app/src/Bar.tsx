@@ -2,16 +2,17 @@ import { ArrowsLeftRight, BookOpenText, ClockCounterClockwise, DownloadSimple, G
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ComponentType } from "react";
 import { inApp } from "./data";
+import { msg, t } from "./i18n";
 
 export type View = "overview" | "updates" | "history" | "compare" | "guides" | "settings";
 
 const tabs: { view: View; label: string; Icon: ComponentType<{ size?: number; weight?: "regular" | "fill"; "aria-hidden"?: "true" }> }[] = [
-  { view: "overview", label: "Overview", Icon: SquaresFour },
-  { view: "updates", label: "Updates", Icon: DownloadSimple },
-  { view: "history", label: "History", Icon: ClockCounterClockwise },
-  { view: "compare", label: "Compare", Icon: ArrowsLeftRight },
-  { view: "guides", label: "Guides", Icon: BookOpenText },
-  { view: "settings", label: "Settings", Icon: GearSix },
+  { view: "overview", label: msg("Overview"), Icon: SquaresFour },
+  { view: "updates", label: msg("Updates"), Icon: DownloadSimple },
+  { view: "history", label: msg("History"), Icon: ClockCounterClockwise },
+  { view: "compare", label: msg("Compare"), Icon: ArrowsLeftRight },
+  { view: "guides", label: msg("Guides"), Icon: BookOpenText },
+  { view: "settings", label: msg("Settings"), Icon: GearSix },
 ];
 
 /** Ctrl+1 to Ctrl+6 open the views in tab order. */
@@ -73,12 +74,12 @@ export function Bar({ host, view, ready, onSelect }: { host: string; view: View;
         <span className="app-mark" aria-hidden="true" />
         <span data-tauri-drag-region>{host}</span>
       </div>
-      <nav className="tabs" ref={row} aria-label="Sections">
+      <nav className="tabs" ref={row} aria-label={t("Sections")}>
         <span className="tabs-lens" style={lens} aria-hidden="true" />
         {tabs.map(({ view: target, label, Icon }, index) => (
-          <button key={target} className="tab" aria-label={label} data-tip={`${label} (Ctrl+${index + 1})`} aria-current={view === target ? "page" : undefined} onClick={() => onSelect(target)}>
+          <button key={target} className="tab" aria-label={t(label)} data-tip={`${t(label)} (Ctrl+${index + 1})`} aria-current={view === target ? "page" : undefined} onClick={() => onSelect(target)}>
             <Icon size={18} weight={view === target ? "fill" : "regular"} aria-hidden="true" />
-            <span>{label}</span>
+            <span>{t(label)}</span>
             {target === "updates" && ready > 0 && <b>{ready}</b>}
           </button>
         ))}
@@ -86,13 +87,13 @@ export function Bar({ host, view, ready, onSelect }: { host: string; view: View;
       <div className="bar-window">
         {inApp && (
           <>
-            <button className="window-button" aria-label="Minimize" data-tip="Minimize" onClick={() => void getCurrentWindow().minimize()}>
+            <button className="window-button" aria-label={t("Minimize")} data-tip={t("Minimize")} onClick={() => void getCurrentWindow().minimize()}>
               <Glyph name="minimize" />
             </button>
-            <button className="window-button" aria-label={maximized ? "Restore" : "Maximize"} data-tip={maximized ? "Restore" : "Maximize"} onClick={() => void getCurrentWindow().toggleMaximize()}>
+            <button className="window-button" aria-label={maximized ? t("Restore") : t("Maximize")} data-tip={maximized ? t("Restore") : t("Maximize")} onClick={() => void getCurrentWindow().toggleMaximize()}>
               <Glyph name={maximized ? "restore" : "maximize"} />
             </button>
-            <button className="window-button" data-close aria-label="Close" data-tip="Close" onClick={() => void getCurrentWindow().close()}>
+            <button className="window-button" data-close aria-label={t("Close")} data-tip={t("Close")} onClick={() => void getCurrentWindow().close()}>
               <Glyph name="close" />
             </button>
           </>
