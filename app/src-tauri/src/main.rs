@@ -9,7 +9,11 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
 };
-use tauri::{AppHandle, Manager};
+use tauri::{
+    menu::{Menu, MenuItem},
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    AppHandle, Manager,
+};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
@@ -268,6 +272,25 @@ fn open_link(app: AppHandle, url: String) -> Result<(), String> {
     app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
 }
 
+/// Brings the window back, from the notification area or a second launch.
+fn show_main(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+/// The notification area icon's tooltip, which says how many updates are ready.
+#[tauri::command]
+fn set_tray_status(app: AppHandle, text: String) -> Result<(), String> {
+    let text: String = text.chars().take(120).collect(); // Windows cuts tooltips at 128 characters
+    match app.tray_by_id("main") {
+        Some(tray) => tray.set_tooltip(Some(text)).map_err(|e| e.to_string()),
+        None => Ok(()),
+    }
+}
+
 /// Action IDs reach a command line, so only the characters the plan contract allows get through.
 fn is_action_id(id: &str) -> bool {
     !id.is_empty() && id.chars().all(|c| c.is_ascii_alphanumeric() || "._+:-".contains(c))
@@ -316,13 +339,7 @@ async fn update(app: AppHandle, action_ids: Vec<String>, restore_point: bool) ->
 fn main() {
     tauri::Builder::default()
         // Registered first, so a second launch only brings the open window forward.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.unminimize();
-                let _ = window.show();
-                let _ = window.set_focus();
-            }
-        }))
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)))
         // Restores size, position and maximized state. Visibility stays with the app, which shows the
         // window once it has drawn.
         .plugin(
@@ -334,6 +351,27 @@ fn main() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            // The icon in the notification area: a click opens the window; the menu also quits, which
+            // matters when closing only hides the window.
+            let open = MenuItem::with_id(app, "open", "Open Workbench Station", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            TrayIconBuilder::with_id("main")
+                .icon(app.default_window_icon().cloned().expect("the app has an icon"))
+                .tooltip("Workbench Station")
+                .menu(&Menu::with_items(app, &[&open, &quit])?)
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, event| match event.id().as_ref() {
+                    "open" => show_main(app),
+                    "quit" => app.exit(0),
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                        show_main(tray.app_handle());
+                    }
+                })
+                .build(app)?;
+
             // If the page never runs, the window still appears instead of staying hidden.
             let window = app.get_webview_window("main").expect("the main window exists");
             std::thread::spawn(move || {
@@ -342,7 +380,7 @@ fn main() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![read_data, save_folders, pick_folder, refresh, update, export_report, release_notes, open_link])
+        .invoke_handler(tauri::generate_handler![read_data, save_folders, pick_folder, refresh, update, export_report, release_notes, open_link, set_tray_status])
         .run(tauri::generate_context!())
         .expect("the Workbench Station window could not start");
 }

@@ -2,7 +2,7 @@ import { CaretRight, WarningCircle } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 import { Command } from "./actions";
 import type { GuideId } from "./guides";
-import { describeFailure, inApp, loadLatestLog, loadSnapshot, refresh, runUpdate, type AppError, type RunLog, type Snapshot } from "./data";
+import { describeFailure, inApp, keepsRunning, loadLatestLog, loadSnapshot, refresh, runUpdate, setTrayStatus, type AppError, type RunLog, type Snapshot } from "./data";
 import { getCurrentWindow, ProgressBarStatus, UserAttentionType } from "@tauri-apps/api/window";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import { Bar, viewOrder, type View } from "./Bar";
@@ -108,8 +108,15 @@ export function App() {
   const closing = useRef<HTMLDialogElement>(null);
   const installing = run !== null;
   useEffect(() => {
-    if (!inApp || !installing) return;
+    if (!inApp) return;
     const listening = getCurrentWindow().onCloseRequested((event) => {
+      // Kept in the notification area: closing only hides, and an install carries on either way.
+      if (keepsRunning()) {
+        event.preventDefault();
+        void getCurrentWindow().hide();
+        return;
+      }
+      if (!installing) return;
       event.preventDefault();
       closing.current?.showModal();
       // The safe choice starts focused, so Enter keeps the window open.
@@ -120,6 +127,17 @@ export function App() {
 
   const plan = snapshot?.plan ?? null;
   const ready = plan?.actions.filter((a) => a.command !== null).length ?? 0;
+
+  useEffect(() => {
+    const status = installing
+      ? "installing updates"
+      : !plan
+        ? "audit this PC to see updates"
+        : ready === 0
+          ? "up to date"
+          : `${ready} ${ready === 1 ? "update" : "updates"} ready`;
+    void setTrayStatus(`Workbench Station: ${status}`);
+  }, [installing, plan, ready]);
 
   return (
     <>
