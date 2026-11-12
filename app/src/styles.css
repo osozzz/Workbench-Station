@@ -507,6 +507,12 @@ code {
   margin-bottom: 12px;
 }
 
+/* A control beside the heading keeps its own width; the text wraps instead. */
+.pane-head > .segments {
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+}
+
 .pane-note {
   max-width: 60ch;
   margin-top: 2px;

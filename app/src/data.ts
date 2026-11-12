@@ -109,6 +109,16 @@ export const releaseNotes = (pkg: string, version: string) =>
   invoke<{ notes: string | null; url: string | null }>("release_notes", { package: pkg, version });
 /** Opens an https link in the default browser. */
 export const openLink = (url: string) => invoke<void>("open_link", { url });
+/** Updates that can run from here: what the Updates tab, the tray and notifications count. */
+export const readyCount = (plan: Plan | null) => plan?.actions.filter((a) => a.command !== null).length ?? 0;
+
+/** "scheduled-audit" when Task Scheduler started the app. */
+export const launchMode = () => invoke<"normal" | "scheduled-audit">("launch_mode");
+
+export type AuditSchedule = "off" | "daily" | "weekly";
+export const auditSchedule = () => invoke<AuditSchedule>("audit_schedule");
+export const setAuditSchedule = (frequency: AuditSchedule) => invoke<void>("set_audit_schedule", { frequency });
+
 /** Sets the notification area icon's tooltip. */
 export const setTrayStatus = (text: string) => (inApp ? invoke<void>("set_tray_status", { text }).catch(() => undefined) : Promise.resolve());
 

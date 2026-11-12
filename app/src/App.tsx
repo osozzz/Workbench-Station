@@ -2,7 +2,8 @@ import { CaretRight, WarningCircle } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 import { Command } from "./actions";
 import type { GuideId } from "./guides";
-import { describeFailure, inApp, keepsRunning, loadLatestLog, loadSnapshot, refresh, runUpdate, setTrayStatus, type AppError, type RunLog, type Snapshot } from "./data";
+import { describeFailure, inApp, keepsRunning, launchMode, loadLatestLog, loadSnapshot, readyCount, refresh, runUpdate, setTrayStatus, type AppError, type RunLog, type Snapshot } from "./data";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow, ProgressBarStatus, UserAttentionType } from "@tauri-apps/api/window";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import { Bar, viewOrder, type View } from "./Bar";
@@ -32,8 +33,10 @@ export function App() {
     );
   useEffect(() => {
     void reload();
-    // The window starts hidden so it never flashes empty; it appears once the app has drawn.
-    if (inApp) void getCurrentWindow().show();
+    // The window starts hidden so it never flashes empty; it appears once the app has drawn. Started by
+    // the scheduled audit, it stays hidden.
+    if (inApp) void launchMode().then((mode) => (mode === "scheduled-audit" ? auditOnSchedule(true) : getCurrentWindow().show()));
+    const scheduled = inApp ? listen("scheduled-audit", () => void auditOnSchedule(false)) : null;
 
     const onKey = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
@@ -44,7 +47,10 @@ export function App() {
       }
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      void scheduled?.then((stop) => stop());
+    };
   }, []);
 
   const audit = async () => {
@@ -104,6 +110,34 @@ export function App() {
     }
   };
 
+  // The scheduled audit skips a run when the app is already auditing or installing.
+  const busy = useRef(false);
+  busy.current = auditing || run !== null;
+
+  /** The scheduled audit: read-only, and it speaks up only when there's something to do or it failed. */
+  const auditOnSchedule = async (closeAfter: boolean) => {
+    // The audit already running finishes the job, closing included.
+    if (busy.current) return;
+    busy.current = true;
+    setAuditing(true);
+    try {
+      await refresh();
+      const next = await loadSnapshot();
+      setSnapshot(next);
+      const ready = readyCount(next.plan);
+      if (ready > 0 && (await isAway())) {
+        await notify(`${ready} ${ready === 1 ? "update is" : "updates are"} ready`, "Workbench Station audited this PC. Open it to review and install them.");
+      }
+    } catch (reason) {
+      const failure = describeFailure(reason);
+      setError(failure);
+      if (await isAway()) await notify("The scheduled audit didn't finish", failure.message);
+    } finally {
+      setAuditing(false);
+    }
+    if (closeAfter && !keepsRunning()) await getCurrentWindow().destroy();
+  };
+
   // Closing the window doesn't stop an install, so it asks first.
   const closing = useRef<HTMLDialogElement>(null);
   const installing = run !== null;
@@ -126,7 +160,7 @@ export function App() {
   }, [installing]);
 
   const plan = snapshot?.plan ?? null;
-  const ready = plan?.actions.filter((a) => a.command !== null).length ?? 0;
+  const ready = readyCount(plan);
 
   useEffect(() => {
     const status = installing
@@ -229,16 +263,24 @@ function Skeleton({ view }: { view: View }) {
 }
 
 /** When an install ends while the window is in the background, the taskbar button flashes and Windows says how it went. */
+/** Hidden in the notification area or behind other windows: a hidden page can still report focus. */
+async function isAway() {
+  return !document.hasFocus() || !(await getCurrentWindow().isVisible());
+}
+
 async function tellWhenAway(log: RunLog) {
-  if (!inApp || document.hasFocus()) return;
+  if (!inApp || !(await isAway())) return;
   const installed = log.actions.filter((a) => a.result === "succeeded").length;
   const failed = log.actions.filter((a) => a.result === "failed").length;
   void getCurrentWindow().requestUserAttention(UserAttentionType.Informational);
+  await notify(
+    failed === 0 ? "Updates installed" : "Some updates didn't install",
+    `${installed} installed${failed ? `, ${failed} failed` : ""}. Open Workbench Station to see the details in History.`,
+  );
+}
+
+async function notify(title: string, body: string) {
   let allowed = await isPermissionGranted();
   if (!allowed) allowed = (await requestPermission()) === "granted";
-  if (!allowed) return;
-  sendNotification({
-    title: failed === 0 ? "Updates installed" : "Some updates didn't install",
-    body: `${installed} installed${failed ? `, ${failed} failed` : ""}. Open Workbench Station to see the details in History.`,
-  });
+  if (allowed) sendNotification({ title, body });
 }
