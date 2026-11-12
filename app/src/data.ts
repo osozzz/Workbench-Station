@@ -84,6 +84,8 @@ const failureMessages: Record<string, string> = {
   "update-stopped": "The install stopped early. History shows what was installed. Audit this PC again before installing the rest.",
   "invalid-selection": "That selection can't be installed. Audit this PC again, then choose the updates once more.",
   "powershell-unavailable": "Windows PowerShell didn't start, so Workbench Station can't audit or install. Check that PowerShell isn't blocked on this PC.",
+  "no-audit": "Audit this PC first, so there's something to export or compare.",
+  "compare-failed": "That file couldn't be compared. Choose an audit exported from Workbench Station on the other PC (a .json file).",
   "plan-failed": "The change was saved, but the list of updates couldn't be rebuilt. Audit this PC again to refresh it.",
   unexpected: "Something unexpected stopped Workbench Station. Copy the details below and report it.",
 };
@@ -98,7 +100,7 @@ export function describeFailure(reason: unknown, fallback?: string): AppError {
   return fallback ? { message: fallback, detail: text } : { message: text };
 }
 
-async function read<T>(name: "plan" | "evaluation" | "logs" | "holds"): Promise<T> {
+async function read<T>(name: "plan" | "evaluation" | "logs" | "holds" | "comparison"): Promise<T> {
   if (inApp) return invoke<T>("read_data", { name });
   const response = await fetch(`/__data/${name}`);
   return response.json() as Promise<T>;
@@ -130,6 +132,38 @@ export const saveHolds = (holds: Hold[]) => invoke<void>("save_holds", { holds }
 
 export const refresh = () => invoke<void>("refresh");
 export const runUpdate = (actionIds: string[], restorePoint: boolean) => invoke<void>("update", { actionIds, restorePoint });
+/** One difference between this PC (the reference) and another PC (the target), as the engine reports it. */
+export interface Difference {
+  category: string;
+  kind: string;
+  providerId: string;
+  componentId: string | null;
+  subjectId: string | null;
+  relation: string;
+  referenceState: string | null;
+  targetState: string | null;
+  referenceValue: unknown;
+  targetValue: unknown;
+}
+
+interface Endpoint {
+  generatedAt: string;
+  host: { name: string };
+}
+
+export interface Comparison {
+  reference: Endpoint;
+  target: Endpoint;
+  summary: { differenceCount: number };
+  differences: Difference[];
+}
+
+/** The last comparison, kept in reports/comparison; null before the first one. */
+export const loadComparison = () => read<Comparison | null>("comparison");
+/** Asks for the other PC's exported audit and compares this PC with it; null if the picker was cancelled. */
+export const compareWith = () => invoke<Comparison | null>("compare_with");
+/** Saves this PC's last audit as JSON; resolves to where it was saved, or null if cancelled. */
+export const exportAudit = () => invoke<string | null>("export_audit");
 /** Saves the last audit as one Markdown file; resolves to where it was saved, or null if cancelled. */
 export const exportReport = () => invoke<string | null>("export_report");
 /** What changes in one version of a WinGet package, from its manifest in the WinGet catalog. */

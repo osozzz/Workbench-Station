@@ -47,7 +47,7 @@ Optional project and Git discovery needs `config\workstation.local.json`; see `c
 
 ## Desktop app
 
-Workbench Station (`app/`) is a Tauri app that does the same work without a terminal: it audits the PC, lists the updates, installs the ones you select, and shows live progress and past runs. It only starts the scripts in `scripts/` and reads their reports, so every rule in `docs/policies/update-execution-safety.md` still applies.
+Workbench Station (`app/`) is a Tauri app that does the same work without a terminal: it audits the PC, lists the updates, installs the ones you select, and shows live progress and past runs. **Compare** exports this PC's audit and compares it with an audit exported on another PC, both read-only. It only starts the scripts in `scripts/` and reads their reports, so every rule in `docs/policies/update-execution-safety.md` still applies.
 
 ```powershell
 cd app

@@ -75,6 +75,7 @@ fn read_data(app: AppHandle, name: String) -> Result<Value, String> {
         }
         "folders" => Ok(read_json(&local_config(&app)?).pointer("/projects/developmentRoots").cloned().unwrap_or_else(|| json!([]))),
         "holds" => Ok(read_json(&local_config(&app)?).pointer("/updates/holds").cloned().unwrap_or_else(|| json!([]))),
+        "comparison" => Ok(read_json(&reports.join("comparison").join("comparison.json"))),
         _ => Err(format!("Unknown data set: {name}")),
     }
 }
@@ -148,8 +149,7 @@ async fn save_holds(app: AppHandle, holds: Vec<Value>) -> Result<(), Value> {
     let unexpected = |e: String| failure("unexpected", e);
     update_config(&app, |config| with_holds(config, &holds)).map_err(unexpected)?;
     let reports = data_root(&app).map_err(unexpected)?.join("reports");
-    // The audit writes its JSON next to the Markdown, with the same name.
-    let Some(report) = latest_audit(&reports).map(|md| md.with_extension("json")).filter(|json| json.exists()) else {
+    let Some(report) = latest_audit_json(&reports) else {
         return Ok(());
     };
     let script = root(&app).map_err(unexpected)?.join("scripts").join("Plan-WorkstationUpdate.ps1");
@@ -241,19 +241,66 @@ async fn export_report(app: AppHandle) -> Result<Option<String>, String> {
         read(reports.join("update-plan").join("update-plan.txt")).as_deref(),
     );
     let name = format!("Workbench Station report {}.md", audit.file_stem().unwrap_or_default().to_string_lossy());
+    save_as(app, name, "Markdown", "md", report.into_bytes()).await
+}
 
+/// Windows' Save As dialog, then the file. Returns where it was saved, or None if cancelled.
+async fn save_as(app: AppHandle, name: String, kind: &'static str, extension: &'static str, bytes: Vec<u8>) -> Result<Option<String>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let mut dialog = app.dialog().file().set_file_name(name).add_filter("Markdown", &["md"]);
+        let mut dialog = app.dialog().file().set_file_name(name).add_filter(kind, &[extension]);
         if let Some(window) = app.get_webview_window("main") {
             dialog = dialog.set_parent(&window);
         }
         let Some(target) = dialog.blocking_save_file() else { return Ok(None) };
         let target = target.into_path().map_err(|e| e.to_string())?;
-        fs::write(&target, report).map_err(|e| e.to_string())?;
+        fs::write(&target, bytes).map_err(|e| e.to_string())?;
         Ok(Some(target.display().to_string()))
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+/// The last audit's JSON report, which the audit writes next to its Markdown with the same name.
+fn latest_audit_json(reports: &Path) -> Option<PathBuf> {
+    latest_audit(reports).map(|md| md.with_extension("json")).filter(|json| json.exists())
+}
+
+/// Saves this PC's last audit as JSON where the person chooses, to compare on another PC.
+#[tauri::command]
+async fn export_audit(app: AppHandle) -> Result<Option<String>, String> {
+    let reports = data_root(&app)?.join("reports");
+    let Some(audit) = latest_audit_json(&reports) else {
+        return Err("There's no audit to export yet. Audit this PC first.".to_string());
+    };
+    let bytes = fs::read(&audit).map_err(|e| e.to_string())?;
+    let name = format!("Workbench Station audit {}.json", audit.file_stem().unwrap_or_default().to_string_lossy());
+    save_as(app, name, "Workbench Station audit", "json", bytes).await
+}
+
+/// Compares this PC's last audit with an audit exported on another PC, which the person picks. Read-only.
+/// Returns the comparison, or None if the picker was cancelled.
+#[tauri::command]
+async fn compare_with(app: AppHandle) -> Result<Option<Value>, Value> {
+    let unexpected = |e: String| failure("unexpected", e);
+    let reports = data_root(&app).map_err(unexpected)?.join("reports");
+    let Some(this_pc) = latest_audit_json(&reports) else {
+        return Err(failure("no-audit", "No audit report in the reports folder."));
+    };
+    let script = root(&app).map_err(unexpected)?.join("scripts").join("Compare-Workstations.ps1");
+    let output = reports.join("comparison");
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut picker = app.dialog().file().add_filter("Workbench Station audit", &["json"]);
+        if let Some(window) = app.get_webview_window("main") {
+            picker = picker.set_parent(&window);
+        }
+        let Some(other) = picker.blocking_pick_file() else { return Ok(None) };
+        let other = other.into_path().map_err(|e| failure("unexpected", e))?;
+        let args = [OsStr::new("-Reference"), this_pc.as_os_str(), OsStr::new("-Target"), other.as_os_str(), OsStr::new("-OutputDirectory"), output.as_os_str()];
+        run_hidden(&script, args, "compare-failed")?;
+        Ok(Some(read_json(&output.join("comparison.json"))))
+    })
+    .await
+    .map_err(|e| failure("unexpected", e))?
 }
 
 /// A WinGet package id or version: the characters winget-pkgs uses, and no empty or dot-only path segment.
@@ -553,7 +600,7 @@ fn main() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![read_data, save_folders, save_holds, pick_folder, refresh, update, export_report, release_notes, open_link, set_tray_status, launch_mode, audit_schedule, set_audit_schedule])
+        .invoke_handler(tauri::generate_handler![read_data, save_folders, save_holds, pick_folder, refresh, update, export_report, export_audit, compare_with, release_notes, open_link, set_tray_status, launch_mode, audit_schedule, set_audit_schedule])
         .run(tauri::generate_context!())
         .expect("the Workbench Station window could not start");
 }
