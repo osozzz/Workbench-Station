@@ -7,6 +7,7 @@ All notable changes to this workstation toolkit are documented here.
 ### Fixed
 
 - On Windows PowerShell 5.1, a command that finished almost at once could be logged without an exit code, so an update that succeeded could show as failed. The executor now starts commands with `Process.Start`, which keeps the exit code. A prompt still reads end-of-input, and a child process left running still can't hold the action open.
+- Comparing two real audit reports failed when WinGet listed a package more than once ("duplicate reliable packageId"), which `winget list` does for each architecture and each version installed side by side. One package ID's installations are now compared as one set, and their versions as the sorted list of distinct versions.
 
 ## 2.3.0 — 2026-11-04
 

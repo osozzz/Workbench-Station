@@ -335,6 +335,34 @@ $unavailableComparison = New-WorkstationComparison -ReferenceReport $unavailable
 Assert-True (@($unavailableComparison.differences | Where-Object { $_.providerId -eq 'runtime.synthetic' -and $_.category -eq 'component' }).Count -eq 1) 'Unavailable WinGet must not prevent unrelated comparison categories from completing.'
 Assert-True (@($unavailableComparison.differences | Where-Object category -eq 'application').Count -eq 0) 'Unavailable WinGet provider must not fabricate application-level drift from absent normalized evidence.'
 
+# winget list shows one line per installation: per architecture, and per version side by side (PC #1).
+$repeatedReport = {
+    param([string]$Name, [object[]]$Records)
+    New-SyntheticReport -Name $Name -Providers @(
+        (New-WinGetProvider -InventoryEvidence (New-SyntheticEvidence -Mode inventory -State known -Records $Records) -UpgradeEvidence (New-SyntheticEvidence -Mode upgrade -State current))
+    )
+}
+$repeatedComparison = New-WorkstationComparison -ReferenceReport (& $repeatedReport 'SYNTHETIC-REFERENCE' @(
+        (New-SyntheticPackage -PackageId 'Microsoft.DirectX' -InstalledVersion '9.29.1974.0'),
+        (New-SyntheticPackage -PackageId 'Microsoft.DirectX' -InstalledVersion '9.29.1974.0'),
+        (New-SyntheticPackage -PackageId 'Oracle.MySQL' -InstalledVersion '8.4.9'),
+        (New-SyntheticPackage -PackageId 'Oracle.MySQL' -InstalledVersion '8.0.42'),
+        (New-SyntheticPackage -PackageId 'Vendor.Partial' -InstalledVersion '1.0'),
+        (New-SyntheticPackage -PackageId 'Vendor.Partial' -InstalledVersion '2.0' -InstalledVersionReliable $false)
+    )) -TargetReport (& $repeatedReport 'SYNTHETIC-TARGET' @(
+        (New-SyntheticPackage -PackageId 'Microsoft.DirectX' -InstalledVersion '9.29.1974.0'),
+        (New-SyntheticPackage -PackageId 'Oracle.MySQL' -InstalledVersion '8.0.42'),
+        (New-SyntheticPackage -PackageId 'Oracle.MySQL' -InstalledVersion '8.4.9'),
+        (New-SyntheticPackage -PackageId 'Oracle.MySQL' -InstalledVersion '8.4.10'),
+        (New-SyntheticPackage -PackageId 'Vendor.Partial' -InstalledVersion '1.0')
+    ))
+$repeated = @($repeatedComparison.differences | Where-Object category -eq 'application')
+Assert-True (@($repeated | Where-Object subjectId -match 'directx').Count -eq 0) 'The same package listed once per architecture must compare as one installation.'
+$mysql = @($repeated | Where-Object { $_.subjectId -match 'mysql' -and $_.kind -eq 'installed-version' })
+Assert-True ($mysql.Count -eq 1 -and $mysql[0].referenceValue -eq '8.0.42, 8.4.9' -and $mysql[0].targetValue -eq '8.0.42, 8.4.10, 8.4.9') 'Side-by-side versions of one package must compare as the sorted set of versions, in any order.'
+$partial = @($repeated | Where-Object { $_.subjectId -match 'partial' -and $_.kind -eq 'installed-version' })
+Assert-True ($partial.Count -eq 1 -and $partial[0].relation -eq 'unknown') 'A version known on only some installations of a package must stay unknown.'
+
 $coreSource = Get-Content -LiteralPath $corePath -Raw
 foreach ($required in @(
     'winget.inventory.normalized',
