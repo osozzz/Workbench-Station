@@ -1,4 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
+import { relaunch } from "@tauri-apps/plugin-process";
+import { check, type Update } from "@tauri-apps/plugin-updater";
 import { msg, t } from "./i18n";
 
 export type Risk = "low" | "medium" | "high";
@@ -187,6 +189,42 @@ export const setAuditSchedule = (frequency: AuditSchedule) => invoke<void>("set_
 /** Sets the notification area icon's tooltip, and its menu in the app's language. */
 export const setTrayStatus = (text: string) =>
   inApp ? invoke<void>("set_tray_status", { text, open: t("Open Workbench Station"), quit: t("Quit") }).catch(() => undefined) : Promise.resolve();
+
+export type { Update };
+
+/** A newer version from GitHub Releases, downloaded and verified, or null when this is the latest. */
+export async function downloadAppUpdate(): Promise<Update | null> {
+  markUpdateChecked();
+  const update = await check();
+  if (!update) return null;
+  await update.download();
+  return update;
+}
+
+/** Runs the downloaded installer, which closes the app and opens the new version. */
+export async function installAppUpdate(update: Update) {
+  await update.install();
+  await relaunch();
+}
+
+const updateCheckKey = "updateCheckedAt";
+
+function markUpdateChecked() {
+  try {
+    localStorage.setItem(updateCheckKey, String(Date.now()));
+  } catch {
+    // Without storage, the app checks at every start.
+  }
+}
+
+/** Whether a day has passed since the last check for a new version of the app. */
+export function updateCheckDue(): boolean {
+  try {
+    return !(Number(localStorage.getItem(updateCheckKey)) > Date.now() - 86_400_000);
+  } catch {
+    return true;
+  }
+}
 
 /** Whether closing the window keeps the app in the notification area. Off when storage is unavailable. */
 export function keepsRunning(): boolean {

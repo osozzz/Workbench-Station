@@ -1,0 +1,4 @@
+# The release build uses exactly this compiler; update it on purpose, with the CI build.
+[toolchain]
+channel = "1.99.1"
+profile = "minimal"

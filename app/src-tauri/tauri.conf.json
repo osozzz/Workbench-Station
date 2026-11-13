@@ -56,5 +56,12 @@
       "../../VERSION": "workstation/VERSION",
       "../../config/workstation.policy.json": "workstation/config/workstation.policy.json"
     }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "",
+      "endpoints": ["https://github.com/osozzz/Workbench-Station/releases/latest/download/latest.json"],
+      "windows": { "installMode": "passive" }
+    }
   }
 }
