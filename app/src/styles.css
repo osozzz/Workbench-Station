@@ -1707,9 +1707,14 @@ code {
 
 .about-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 16px;
   margin-bottom: 16px;
+}
+
+.about-head > .button {
+  margin-left: auto;
 }
 
 .facts {

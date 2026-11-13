@@ -1,11 +1,16 @@
 import { Check, Folder, FolderPlus, Trash } from "@phosphor-icons/react";
 import { getVersion } from "@tauri-apps/api/app";
 import { useEffect, useState } from "react";
-import { auditSchedule, describeFailure, inApp, keepsRunning, setAuditSchedule, setKeepsRunning, type AppError, type AuditSchedule } from "../data";
+import { auditSchedule, describeFailure, inApp, keepsRunning, setAuditSchedule, setKeepsRunning, type AppError, type AuditSchedule, type Update } from "../data";
 import { useFolders } from "../folders";
 import { languageChoice, t, type Language } from "../i18n";
 
-export function Settings({ onError, onLanguage }: { onError(error: AppError | null): void; onLanguage(choice: Language | "windows"): void }) {
+export function Settings(props: {
+  onError(error: AppError | null): void;
+  onLanguage(choice: Language | "windows"): void;
+  onCheckForUpdates(): Promise<Update | null>;
+}) {
+  const { onError, onLanguage, onCheckForUpdates } = props;
   const { folders, changed, add, remove } = useFolders(onError);
 
   return (
@@ -46,7 +51,7 @@ export function Settings({ onError, onLanguage }: { onError(error: AppError | nu
       <AutomaticAudit onError={onError} />
       <LanguageSetting onLanguage={onLanguage} />
       <WindowSettings />
-      <About />
+      <About onCheckForUpdates={onCheckForUpdates} />
     </>
   );
 }
@@ -154,11 +159,19 @@ function WindowSettings() {
   );
 }
 
-function About() {
+function About({ onCheckForUpdates }: { onCheckForUpdates(): Promise<Update | null> }) {
   const [version, setVersion] = useState<string | null>(null);
+  const [check, setCheck] = useState<"idle" | "checking" | "latest" | "found" | "failed">("idle");
   useEffect(() => {
     if (inApp) void getVersion().then(setVersion, () => undefined);
   }, []);
+  const checkNow = () => {
+    setCheck("checking");
+    onCheckForUpdates().then(
+      (found) => setCheck(found ? "found" : "latest"),
+      () => setCheck("failed"),
+    );
+  };
 
   return (
     <section className="pane settings">
@@ -168,7 +181,13 @@ function About() {
           <h2 className="section-title">Workbench Station</h2>
           <p className="pane-note">{version ? t("Version {version}", { version }) : t("Version not available in this preview")}</p>
         </div>
+        <button className="button" disabled={!inApp || check === "checking"} onClick={checkNow}>
+          {check === "checking" ? t("Checking for updates…") : t("Check for updates")}
+        </button>
       </div>
+      {check === "latest" && <p className="pane-note">{t("This is the latest version.")}</p>}
+      {check === "found" && <p className="pane-note">{t("A new version is ready. Use the notice at the top to restart to it.")}</p>}
+      {check === "failed" && <p className="pane-note">{t("Couldn't check for updates. Check that this PC is online, then try again.")}</p>}
       <dl className="facts">
         <dt>{t("Publisher")}</dt>
         <dd>Alejandro Osorno</dd>
