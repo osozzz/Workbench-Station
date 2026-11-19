@@ -17,6 +17,7 @@ import {
   saveHolds,
   setTrayStatus,
   updateCheckDue,
+  checksForUpdates,
   type AppError,
   type Hold,
   type RunLog,
@@ -104,9 +105,9 @@ export function App() {
   };
   useEffect(() => {
     if (!inApp) return;
-    // Quietly, at most once a day; the scheduled audit run closes again right away, so it doesn't check.
+    // Quietly, at most once a day and only while allowed in Settings; the scheduled audit run closes again right away, so it doesn't check.
     const quietly = () => {
-      if (updateCheckDue()) void launchMode().then((mode) => (mode === "normal" ? findAppUpdate() : null)).catch(() => undefined);
+      if (checksForUpdates() && updateCheckDue()) void launchMode().then((mode) => (mode === "normal" ? findAppUpdate() : null)).catch(() => undefined);
     };
     quietly();
     const timer = window.setInterval(quietly, 3_600_000);

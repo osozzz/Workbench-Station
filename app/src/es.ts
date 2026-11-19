@@ -95,6 +95,10 @@ export const es: Record<string, string> = {
     "No se pudo instalar la versión nueva. Inténtalo otra vez, o descárgala desde la página del proyecto en GitHub.",
   "Check for updates": "Buscar actualizaciones",
   "Checking for updates…": "Buscando actualizaciones…",
+  "Check for updates automatically": "Buscar actualizaciones automáticamente",
+  "Once a day, the app asks GitHub for the latest version. No audit data is sent. When this is off, use Check for updates.":
+    "Una vez al día, la app le pregunta a GitHub cuál es la última versión. No se envía ningún dato de las auditorías. Si lo apagas, usa Buscar actualizaciones.",
+  "Privacy": "Privacidad",
   "This is the latest version.": "Esta es la última versión.",
   "A new version is ready. Use the notice at the top to restart to it.": "Hay una versión nueva lista. Usa el aviso de arriba para reiniciar con ella.",
   "Couldn't check for updates. Check that this PC is online, then try again.": "No se pudo buscar actualizaciones. Comprueba que este equipo tenga internet e inténtalo otra vez.",
