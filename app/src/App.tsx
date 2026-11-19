@@ -1,8 +1,28 @@
-import { CaretRight, WarningCircle } from "@phosphor-icons/react";
+import { ArrowCircleUp, CaretRight, WarningCircle } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 import { Command } from "./actions";
 import type { GuideId } from "./guides";
-import { describeFailure, inApp, keepsRunning, launchMode, loadLatestLog, loadSnapshot, readyCount, refresh, runUpdate, saveHolds, setTrayStatus, type AppError, type Hold, type RunLog, type Snapshot } from "./data";
+import {
+  describeFailure,
+  downloadAppUpdate,
+  inApp,
+  installAppUpdate,
+  keepsRunning,
+  launchMode,
+  loadLatestLog,
+  loadSnapshot,
+  readyCount,
+  refresh,
+  runUpdate,
+  saveHolds,
+  setTrayStatus,
+  updateCheckDue,
+  type AppError,
+  type Hold,
+  type RunLog,
+  type Snapshot,
+  type Update,
+} from "./data";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow, ProgressBarStatus, UserAttentionType } from "@tauri-apps/api/window";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
@@ -71,6 +91,35 @@ export function App() {
       setError(describeFailure(reason));
     } finally {
       setAuditing(false);
+    }
+  };
+
+  // A new version of the app, already downloaded. It installs only when asked, never during an install or audit.
+  const [appUpdate, setAppUpdate] = useState<Update | null>(null);
+  const [restarting, setRestarting] = useState(false);
+  const findAppUpdate = async () => {
+    const found = await downloadAppUpdate();
+    if (found) setAppUpdate(found);
+    return found;
+  };
+  useEffect(() => {
+    if (!inApp) return;
+    // Quietly, at most once a day; the scheduled audit run closes again right away, so it doesn't check.
+    const quietly = () => {
+      if (updateCheckDue()) void launchMode().then((mode) => (mode === "normal" ? findAppUpdate() : null)).catch(() => undefined);
+    };
+    quietly();
+    const timer = window.setInterval(quietly, 3_600_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const restartToUpdate = async () => {
+    if (!appUpdate) return;
+    setRestarting(true);
+    try {
+      await installAppUpdate(appUpdate);
+    } catch (reason) {
+      setError(describeFailure(reason, t("The new version couldn't be installed. Try again, or download it from the project's GitHub page.")));
+      setRestarting(false);
     }
   };
 
@@ -219,6 +268,29 @@ export function App() {
               </div>
             </div>
           )}
+          {appUpdate && (
+            <div className="notice" role="status">
+              <ArrowCircleUp size={20} aria-hidden="true" />
+              <div className="notice-body">
+                <p>{t("Workbench Station {version} is ready. Restarting installs it in a few seconds.", { version: appUpdate.version })}</p>
+                {appUpdate.body && (
+                  <details>
+                    <summary>
+                      <CaretRight size={14} weight="bold" aria-hidden="true" />
+                      {t("What's new")}
+                    </summary>
+                    <p className="release-notes-text">{appUpdate.body}</p>
+                  </details>
+                )}
+                <div className="row-actions">
+                  <button className="button button-primary" disabled={installing || auditing || restarting} onClick={() => void restartToUpdate()}>
+                    {restarting ? t("Restarting…") : t("Restart to update")}
+                  </button>
+                  {(installing || auditing) && <span className="detail-note">{t("Available when the install or audit finishes.")}</span>}
+                </div>
+              </div>
+            </div>
+          )}
           {!error && snapshot === null && view !== "settings" && view !== "guides" && view !== "compare" && <Skeleton view={view} />}
           <div className="view" key={view}>
             {snapshot && view === "overview" && <Overview snapshot={snapshot} run={run} auditing={auditing} onAudit={audit} onOpenUpdates={() => setView("updates")} onError={setError} />}
@@ -243,7 +315,7 @@ export function App() {
               />}
             {view === "compare" && <Compare />}
             {view === "guides" && <Guides guide={guide} onSelect={setGuide} />}
-            {view === "settings" && <Settings onError={setError} onLanguage={changeLanguage} />}
+            {view === "settings" && <Settings onError={setError} onLanguage={changeLanguage} onCheckForUpdates={findAppUpdate} />}
           </div>
         </div>
       </main>

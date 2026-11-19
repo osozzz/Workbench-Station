@@ -60,6 +60,19 @@ Building needs Node.js, pnpm, and Rust. The installed app needs no terminal. On 
 
 The installer runs for the current user only, so it needs no administrator rights, and it is available in English and Spanish. It is not code-signed yet, so a downloaded copy shows a Windows SmartScreen warning: choose **More info**, then **Run anyway**. To remove the app, use **Settings > Apps** in Windows; the uninstaller can also delete your settings and reports.
 
+The installed app checks GitHub Releases for a new version once a day (**Settings > Check for updates** checks now). A new version downloads in the background and installs only when you choose **Restart to update**, never during an install or an audit. Every update is signed, and the app refuses one whose signature doesn't match the public key in `app/src-tauri/tauri.conf.json`.
+
+### Releasing the desktop app
+
+One time: generate the update signing key with `cd app; pnpm tauri signer generate -w "$env:USERPROFILE\.tauri\workbench-station.key"`. Put its public key in `plugins.updater.pubkey` in `app/src-tauri/tauri.conf.json`. Add the private key and its password as the repository secrets `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, and keep a backup outside the repository: without it, installed apps can't be updated again.
+
+For each release:
+
+1. Set the version in `app/package.json`, `app/src-tauri/Cargo.toml` and `app/src-tauri/tauri.conf.json`, and rename `## Unreleased` in `CHANGELOG.md` to `## <version> — <date>`. Merge that.
+2. Tag it: `git tag v<version>` and `git push origin v<version>`.
+3. `.github/workflows/release.yml` checks that the tag matches the app version and builds the signed installer. It then creates a **draft** release with the installer, its `.sig`, `latest.json`, `SHA256SUMS.txt` and the CHANGELOG section as notes, and attests the installer's build provenance.
+4. Review the draft and publish it. Installed apps find it within a day. Anyone can check a download with `gh attestation verify <installer> --repo osozzz/Workbench-Station` or against `SHA256SUMS.txt`.
+
 The app icon and installer artwork come from `app/icon.svg` (`pnpm tauri icon icon.svg`) and `app/src-tauri/installer/`. The visual system (palette, type, glass, motion, voice) is documented in `DESIGN.md`.
 
 ## Roadmap

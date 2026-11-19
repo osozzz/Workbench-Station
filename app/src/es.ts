@@ -85,6 +85,20 @@ export const es: Record<string, string> = {
   "Keep open": "Mantener abierta",
   "Reading the last audit": "Leyendo la última auditoría",
 
+  // New versions of the app
+  "Workbench Station {version} is ready. Restarting installs it in a few seconds.": "Workbench Station {version} está lista. Al reiniciar se instala en unos segundos.",
+  "What's new": "Novedades",
+  "Restart to update": "Reiniciar para actualizar",
+  "Restarting…": "Reiniciando…",
+  "Available when the install or audit finishes.": "Disponible cuando termine la instalación o la auditoría.",
+  "The new version couldn't be installed. Try again, or download it from the project's GitHub page.":
+    "No se pudo instalar la versión nueva. Inténtalo otra vez, o descárgala desde la página del proyecto en GitHub.",
+  "Check for updates": "Buscar actualizaciones",
+  "Checking for updates…": "Buscando actualizaciones…",
+  "This is the latest version.": "Esta es la última versión.",
+  "A new version is ready. Use the notice at the top to restart to it.": "Hay una versión nueva lista. Usa el aviso de arriba para reiniciar con ella.",
+  "Couldn't check for updates. Check that this PC is online, then try again.": "No se pudo buscar actualizaciones. Comprueba que este equipo tenga internet e inténtalo otra vez.",
+
   // Overview
   "Each mark is one update. Hover over a mark to see which.": "Cada marca es una actualización. Pasa el cursor por una marca para ver cuál.",
   Installed: "Instalada",

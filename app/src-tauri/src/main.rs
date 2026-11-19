@@ -577,6 +577,9 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
+        // Updates come from GitHub Releases and are verified against the public key in tauri.conf.json.
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             // The icon in the notification area: a click opens the window; the menu also quits, which
             // matters when closing only hides the window.
