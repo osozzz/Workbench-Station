@@ -529,6 +529,12 @@ fn drives() -> Vec<String> {
 /// reads the drive's file table directly, so Windows asks for administrator rights each time.
 #[tauri::command]
 async fn scan_space(app: AppHandle, path: String, fast: bool) -> Result<Value, Value> {
+    // Fast mode runs elevated, so the only thing it takes from the page is a drive letter. Anything else could add
+    // arguments to an elevated command line.
+    let drive = path.strip_suffix(":\\").and_then(|l| l.chars().next().filter(|c| c.is_ascii_alphabetic() && l.len() == 1));
+    if fast && drive.is_none() {
+        return Err(failure("unexpected", format!("Fast mode measures a whole drive, not {path}.")));
+    }
     let scanner = std::env::current_exe().map_err(unexpected)?.with_file_name("workbench-space.exe");
     if !scanner.exists() {
         return Err(failure("scanner-missing", scanner.display()));
@@ -551,14 +557,14 @@ async fn scan_space(app: AppHandle, path: String, fast: bool) -> Result<Value, V
                     Err(failure("space-scan-failed", String::from_utf8_lossy(&output.stderr).trim()))
                 };
             }
+            // Only app-chosen paths (which can't hold a double quote on Windows) and the validated letter reach the
+            // elevated command. C:\. is C:\ without the trailing \" that would escape the closing quote.
             let quoted = |text: String| text.replace('\'', "''");
-            // A root like C:\ would end in \" on the command line, which escapes the quote; C:\. is the same folder.
-            let target = if path.ends_with('\\') { format!("{path}.") } else { path };
+            let letter = drive.unwrap_or('C');
             let elevate = format!(
-                "try {{ $p = Start-Process '{}' -Verb RunAs -WindowStyle Hidden -PassThru -ErrorAction Stop -ArgumentList '\"{}\" --mft --out \"{}\"' }} \
+                "try {{ $p = Start-Process '{}' -Verb RunAs -WindowStyle Hidden -PassThru -ErrorAction Stop -ArgumentList '\"{letter}:\\.\" --mft --out \"{}\"' }} \
                  catch {{ exit {PERMISSION_DECLINED} }}; $null = $p.Handle; $p.WaitForExit(); exit $p.ExitCode",
                 quoted(scanner.display().to_string()),
-                quoted(target),
                 quoted(partial.display().to_string())
             );
             let output = Command::new("powershell.exe")
