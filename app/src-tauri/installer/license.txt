@@ -1,0 +1,35 @@
+PRIVACY / PRIVACIDAD
+
+Workbench Station has no account, no telemetry and no server of its own. Your reports and settings stay on this PC.
+- Once a day the app asks GitHub for its latest version. Turn it off in Settings > Check for updates automatically.
+- During an audit it asks public sources (WinGet, nodejs.org, npm, PyPI, GitHub and others) for the latest version of each tool. Nothing about you or this PC is sent.
+Full policy: https://github.com/osozzz/Workbench-Station/blob/main/PRIVACY.md
+
+Workbench Station no tiene cuentas, ni telemetría, ni servidor propio. Tus reportes y ajustes se quedan en este PC.
+- Una vez al día, la app le pregunta a GitHub cuál es su última versión. Puedes apagarlo en Ajustes > Buscar actualizaciones automáticamente.
+- Durante una auditoría, consulta fuentes públicas (WinGet, nodejs.org, npm, PyPI, GitHub y otras) para saber la última versión de cada herramienta. No se envía nada sobre ti ni sobre este PC.
+Política completa: https://github.com/osozzz/Workbench-Station/blob/main/PRIVACY.md
+
+------------------------------------------------------------
+
+MIT License
+
+Copyright (c) 2026 Alejandro Osorno
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
