@@ -92,6 +92,9 @@ const failureMessages: Record<string, string> = {
   "plan-failed": msg("The change was saved, but the list of updates couldn't be rebuilt. Audit this PC again to refresh it."),
   "folder-too-broad": msg("{detail} is too broad to scan. Choose a folder inside the drive."),
   "settings-invalid": msg("This PC's settings file can't be read, so it wasn't changed. Copy the details below and report it."),
+  "space-permission-declined": msg("Windows permission was declined, so the fast scan didn't run. Measure again and choose Yes, or use the normal mode."),
+  "space-scan-failed": msg("The scan stopped before it finished. Nothing was changed. Try again, or use the normal mode."),
+  "scanner-missing": msg("The space scanner isn't installed with this copy of the app. Reinstall Workbench Station to restore it."),
   unexpected: msg("Something unexpected stopped Workbench Station. Copy the details below and report it."),
 };
 
@@ -105,7 +108,7 @@ export function describeFailure(reason: unknown, fallback?: string): AppError {
   return fallback ? { message: fallback, detail: text } : { message: text };
 }
 
-async function read<T>(name: "plan" | "evaluation" | "logs" | "holds" | "comparison"): Promise<T> {
+async function read<T>(name: "plan" | "evaluation" | "logs" | "holds" | "comparison" | "space"): Promise<T> {
   if (inApp) return invoke<T>("read_data", { name });
   const response = await fetch(`/__data/${name}`);
   return response.json() as Promise<T>;
@@ -167,6 +170,40 @@ export interface Comparison {
 export const loadComparison = () => read<Comparison | null>("comparison");
 /** Asks for the other PC's exported audit and compares this PC with it; null if the picker was cancelled. */
 export const compareWith = () => invoke<Comparison | null>("compare_with");
+/** A folder in a space scan. Folders too small to show are summed in `other`; `own` is the files directly inside. */
+export interface SpaceNode {
+  name: string;
+  bytes: number;
+  files: number;
+  own: number;
+  other: number;
+  children: SpaceNode[];
+}
+
+/** What workbench-space.exe measured. "size" counts each file's size; "on-disk" what it takes on the drive. */
+export interface SpaceScan {
+  root: string;
+  mode: "walk" | "mft";
+  measure: "size" | "on-disk";
+  volume: { total: number; free: number } | null;
+  elapsedMs: number;
+  /** When the scan finished, in milliseconds since 1970. */
+  finishedAt?: number;
+  bytes: number;
+  files: number;
+  folders: number;
+  skipped: number;
+  tree: SpaceNode;
+  largest: { path: string; bytes: number }[];
+  types: { ext: string; bytes: number; files: number }[];
+}
+
+/** The last space scan, or null if there's none yet. */
+export const loadSpace = () => read<SpaceScan | null>("space");
+/** The drives that can be measured, like C:\. */
+export const listDrives = () => invoke<string[]>("drives");
+/** Measures a folder or drive. Fast mode needs an NTFS drive and asks Windows for administrator rights. */
+export const scanSpace = (path: string, fast: boolean) => invoke<SpaceScan>("scan_space", { path, fast });
 /** Saves this PC's last audit as JSON; resolves to where it was saved, or null if cancelled. */
 export const exportAudit = () => invoke<string | null>("export_audit");
 /** Saves the last audit as one Markdown file; resolves to where it was saved, or null if cancelled. */

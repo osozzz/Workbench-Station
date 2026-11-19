@@ -1964,3 +1964,212 @@ code {
     animation: none !important;
   }
 }
+
+/* Space: what takes up room on a drive or folder. The map stays in neutral silk tones; copper is for the action
+   and color carries no meaning here. What no file explains is drawn as an outline, like a manual update. */
+.space-start {
+  display: grid;
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.space-pick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.space-pick .segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.space-folder {
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.space-map {
+  display: grid;
+  gap: 12px;
+}
+
+.space-summary {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.space-trail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 4px;
+  color: var(--silk-soft);
+}
+
+.space-trail span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.space-crumb,
+.space-open {
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.space-crumb:hover,
+.space-open:hover {
+  background: var(--tray);
+  color: var(--silk);
+}
+
+.space-crumb[aria-current="location"] {
+  color: var(--silk);
+  font-weight: 500;
+}
+
+.space-open {
+  margin-inline-start: -6px;
+  font-weight: 500;
+}
+
+.treemap {
+  position: relative;
+  aspect-ratio: 2 / 1;
+  overflow: hidden;
+  border-radius: var(--r-tray);
+  background: var(--tray);
+}
+
+.tile {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 10px;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--r-mark);
+  outline-offset: -2px;
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  background: color-mix(in srgb, var(--silk) var(--shade), transparent);
+  color: var(--silk);
+  font: inherit;
+  text-align: start;
+}
+
+button.tile {
+  cursor: pointer;
+  transition: background-color 140ms ease-out;
+}
+
+button.tile:hover {
+  background: color-mix(in srgb, var(--silk) calc(var(--shade) + 8%), transparent);
+}
+
+.tile[data-kind="files"],
+.tile[data-kind="other"] {
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--silk) 10%, transparent) 0 6px, transparent 6px 12px);
+}
+
+.tile[data-kind="system"] {
+  background: none;
+  box-shadow: inset 0 0 0 1.5px var(--manual);
+}
+
+.tile-name,
+.tile-size {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tile-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.tile-size {
+  color: var(--silk-soft);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.space-rows .row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.space-size {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.space-bar {
+  grid-column: 1 / -1;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--tray);
+}
+
+.space-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--silk-soft);
+}
+
+.space-bar i[data-kind="system"] {
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--manual);
+}
+
+.space-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.space-columns .pane {
+  display: grid;
+  gap: 8px;
+}
+
+.space-columns .button {
+  justify-self: start;
+}
+
+.space-path {
+  overflow: hidden;
+  font-family: var(--code);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 980px) {
+  .space-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button.tile {
+    transition: none;
+  }
+}

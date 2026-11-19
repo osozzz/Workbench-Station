@@ -80,6 +80,8 @@ fn read_data(app: AppHandle, name: String) -> Result<Value, String> {
         "folders" => Ok(read_json(&local_config(&app)?).pointer("/projects/developmentRoots").cloned().unwrap_or_else(|| json!([]))),
         "holds" => Ok(read_json(&local_config(&app)?).pointer("/updates/holds").cloned().unwrap_or_else(|| json!([]))),
         "comparison" => Ok(read_json(&reports.join("comparison").join("comparison.json"))),
+        // Its own folder, so the exported audit and the comparison never include it.
+        "space" => Ok(read_json(&reports.join("space").join("space.json"))),
         _ => Err(format!("Unknown data set: {name}")),
     }
 }
@@ -517,6 +519,74 @@ fn is_action_id(id: &str) -> bool {
 }
 
 /// Runs the selected actions with one UAC prompt. The script rechecks the plan, the allow-list and the count.
+/// The drives that can be measured: letters whose root answers, so an empty card reader is left out.
+#[tauri::command]
+fn drives() -> Vec<String> {
+    ('A'..='Z').map(|letter| format!("{letter}:\\")).filter(|root| Path::new(root).is_dir()).collect()
+}
+
+/// Measures what takes up space under a folder or drive with workbench-space.exe, which only reads. The fast mode
+/// reads the drive's file table directly, so Windows asks for administrator rights each time.
+#[tauri::command]
+async fn scan_space(app: AppHandle, path: String, fast: bool) -> Result<Value, Value> {
+    // Fast mode runs elevated, so the only thing it takes from the page is a drive letter. Anything else could add
+    // arguments to an elevated command line.
+    let drive = path.strip_suffix(":\\").and_then(|l| l.chars().next().filter(|c| c.is_ascii_alphabetic() && l.len() == 1));
+    if fast && drive.is_none() {
+        return Err(failure("unexpected", format!("Fast mode measures a whole drive, not {path}.")));
+    }
+    let scanner = std::env::current_exe().map_err(unexpected)?.with_file_name("workbench-space.exe");
+    if !scanner.exists() {
+        return Err(failure("scanner-missing", scanner.display()));
+    }
+    let folder = data_root(&app).map_err(unexpected)?.join("reports").join("space");
+    fs::create_dir_all(&folder).map_err(unexpected)?;
+    let out = folder.join("space.json");
+    // A failed scan must not leave the last one looking like its result.
+    let partial = folder.join("space.partial.json");
+    let _ = fs::remove_file(&partial);
+
+    let finished = tauri::async_runtime::spawn_blocking({
+        let partial = partial.clone();
+        move || -> Result<(), Value> {
+            if !fast {
+                let output = Command::new(&scanner).arg(&path).arg("--out").arg(&partial).creation_flags(CREATE_NO_WINDOW).output().map_err(unexpected)?;
+                return if output.status.success() {
+                    Ok(())
+                } else {
+                    Err(failure("space-scan-failed", String::from_utf8_lossy(&output.stderr).trim()))
+                };
+            }
+            // Only app-chosen paths (which can't hold a double quote on Windows) and the validated letter reach the
+            // elevated command. C:\. is C:\ without the trailing \" that would escape the closing quote.
+            let quoted = |text: String| text.replace('\'', "''");
+            let letter = drive.unwrap_or('C');
+            let elevate = format!(
+                "try {{ $p = Start-Process '{}' -Verb RunAs -WindowStyle Hidden -PassThru -ErrorAction Stop -ArgumentList '\"{letter}:\\.\" --mft --out \"{}\"' }} \
+                 catch {{ exit {PERMISSION_DECLINED} }}; $null = $p.Handle; $p.WaitForExit(); exit $p.ExitCode",
+                quoted(scanner.display().to_string()),
+                quoted(partial.display().to_string())
+            );
+            let output = Command::new("powershell.exe")
+                .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &elevate])
+                .creation_flags(CREATE_NO_WINDOW)
+                .output()
+                .map_err(|e| failure("powershell-unavailable", e))?;
+            match output.status.code() {
+                Some(0) => Ok(()),
+                Some(PERMISSION_DECLINED) => Err(failure("space-permission-declined", "Windows UAC prompt declined.")),
+                // The elevated scanner's own message stays in its window; the code says what went wrong.
+                code => Err(failure("space-scan-failed", format!("Exit code {code:?}. Fast mode needs an NTFS drive; try the normal mode."))),
+            }
+        }
+    })
+    .await
+    .map_err(unexpected)?;
+    finished?;
+    fs::rename(&partial, &out).map_err(unexpected)?;
+    Ok(read_json(&out))
+}
+
 #[tauri::command]
 async fn update(app: AppHandle, action_ids: Vec<String>, restore_point: bool) -> Result<(), Value> {
     if action_ids.is_empty() || !action_ids.iter().all(|id| is_action_id(id)) {
@@ -613,7 +683,7 @@ fn main() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![read_data, save_folders, save_holds, pick_folder, refresh, update, export_report, export_audit, compare_with, release_notes, open_link, set_tray_status, launch_mode, audit_schedule, set_audit_schedule])
+        .invoke_handler(tauri::generate_handler![read_data, save_folders, save_holds, pick_folder, refresh, update, export_report, export_audit, compare_with, release_notes, open_link, set_tray_status, launch_mode, audit_schedule, set_audit_schedule, drives, scan_space])
         .run(tauri::generate_context!())
         .expect("the Workbench Station window could not start");
 }
