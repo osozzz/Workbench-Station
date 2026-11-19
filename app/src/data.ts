@@ -226,6 +226,23 @@ export function updateCheckDue(): boolean {
   }
 }
 
+/** Whether the app looks for a new version of itself on its own. On unless turned off in Settings. */
+export function checksForUpdates(): boolean {
+  try {
+    return localStorage.getItem("autoUpdateCheck") !== "off";
+  } catch {
+    return true;
+  }
+}
+
+export function setChecksForUpdates(on: boolean) {
+  try {
+    localStorage.setItem("autoUpdateCheck", on ? "on" : "off");
+  } catch {
+    // Kept for this session only.
+  }
+}
+
 /** Whether closing the window keeps the app in the notification area. Off when storage is unavailable. */
 export function keepsRunning(): boolean {
   try {

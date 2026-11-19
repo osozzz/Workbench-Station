@@ -60,7 +60,7 @@ Building needs Node.js, pnpm, and Rust. The installed app needs no terminal. On 
 
 The installer runs for the current user only, so it needs no administrator rights, and it is available in English and Spanish. It is not code-signed yet, so a downloaded copy shows a Windows SmartScreen warning: choose **More info**, then **Run anyway**. To remove the app, use **Settings > Apps** in Windows; the uninstaller can also delete your settings and reports.
 
-The installed app checks GitHub Releases for a new version once a day (**Settings > Check for updates** checks now). A new version downloads in the background and installs only when you choose **Restart to update**, never during an install or an audit. Every update is signed, and the app refuses one whose signature doesn't match the public key in `app/src-tauri/tauri.conf.json`.
+The installed app checks GitHub Releases for a new version once a day, unless **Settings > Check for updates automatically** is off (**Check for updates** checks now). A new version downloads in the background and installs only when you choose **Restart to update**, never during an install or an audit. Every update is signed, and the app refuses one whose signature doesn't match the public key in `app/src-tauri/tauri.conf.json`.
 
 ### Releasing the desktop app
 
@@ -138,6 +138,22 @@ It must not silently:
 - expose arbitrary environment variables or secrets.
 
 See `SECURITY.md` and `docs/policies/audit-safety.md`.
+
+## Privacy
+
+No account, no telemetry. Reports and settings stay on this PC. The app checks GitHub for a new version once a day (you can turn it off in Settings), and an audit asks public sources for the latest version of each tool. Details in [`PRIVACY.md`](PRIVACY.md).
+
+## Code signing policy
+
+Windows installers are built from this repository by [`release.yml`](.github/workflows/release.yml) on GitHub Actions; nothing is built or signed on a personal machine. Every release is approved by hand before it is published.
+
+| Role | Who |
+|---|---|
+| Authors (committers) | [Alejandro Osorno](https://github.com/osozzz) |
+| Reviewers | [Alejandro Osorno](https://github.com/osozzz) |
+| Approvers | [Alejandro Osorno](https://github.com/osozzz) |
+
+Privacy: see [`PRIVACY.md`](PRIVACY.md). This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it, except for what that page describes.
 
 ## License
 

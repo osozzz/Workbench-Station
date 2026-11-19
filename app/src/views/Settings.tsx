@@ -1,7 +1,7 @@
 import { Check, Folder, FolderPlus, Trash } from "@phosphor-icons/react";
 import { getVersion } from "@tauri-apps/api/app";
 import { useEffect, useState } from "react";
-import { auditSchedule, describeFailure, inApp, keepsRunning, setAuditSchedule, setKeepsRunning, type AppError, type AuditSchedule, type Update } from "../data";
+import { auditSchedule, checksForUpdates, describeFailure, inApp, keepsRunning, setAuditSchedule, setChecksForUpdates, setKeepsRunning, type AppError, type AuditSchedule, type Update } from "../data";
 import { useFolders } from "../folders";
 import { languageChoice, t, type Language } from "../i18n";
 
@@ -162,6 +162,7 @@ function WindowSettings() {
 function About({ onCheckForUpdates }: { onCheckForUpdates(): Promise<Update | null> }) {
   const [version, setVersion] = useState<string | null>(null);
   const [check, setCheck] = useState<"idle" | "checking" | "latest" | "found" | "failed">("idle");
+  const [automatic, setAutomatic] = useState(checksForUpdates);
   useEffect(() => {
     if (inApp) void getVersion().then(setVersion, () => undefined);
   }, []);
@@ -188,7 +189,24 @@ function About({ onCheckForUpdates }: { onCheckForUpdates(): Promise<Update | nu
       {check === "latest" && <p className="pane-note">{t("This is the latest version.")}</p>}
       {check === "found" && <p className="pane-note">{t("A new version is ready. Use the notice at the top to restart to it.")}</p>}
       {check === "failed" && <p className="pane-note">{t("Couldn't check for updates. Check that this PC is online, then try again.")}</p>}
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={automatic}
+          disabled={!inApp}
+          onChange={(e) => {
+            setAutomatic(e.target.checked);
+            setChecksForUpdates(e.target.checked);
+          }}
+        />
+        <span>
+          <b>{t("Check for updates automatically")}</b>
+          {t("Once a day, the app asks GitHub for the latest version. No audit data is sent. When this is off, use Check for updates.")}
+        </span>
+      </label>
       <dl className="facts">
+        <dt>{t("Privacy")}</dt>
+        <dd>github.com/osozzz/Workbench-Station/blob/main/PRIVACY.md</dd>
         <dt>{t("Publisher")}</dt>
         <dd>Alejandro Osorno</dd>
         <dt>{t("License")}</dt>
