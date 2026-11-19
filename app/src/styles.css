@@ -2173,3 +2173,66 @@ button.tile:hover {
     transition: none;
   }
 }
+
+/* Free up space: one row per item, its exact command and its own button. */
+.cleanup {
+  display: grid;
+  gap: 14px;
+}
+
+.cleanup-row .space-path {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.cleanup-admin {
+  margin-inline-start: 6px;
+  color: var(--silk-soft);
+  vertical-align: -3px;
+}
+
+.cleanup-action {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.cleanup-action .command {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+/* A result, so it takes the color runs use for success. */
+.cleanup-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--low);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.cleanup-confirm .command {
+  margin: 12px 24px 0;
+}
+
+.sheet.close-guard.cleanup-confirm {
+  width: min(640px, calc(100vw - 32px));
+}
+
+.cleanup-confirm .command {
+  min-width: 0;
+}
+
+.cleanup-confirm code,
+.cleanup-confirm-path {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.cleanup-confirm-path {
+  margin: 0 0 8px;
+  color: var(--silk);
+}

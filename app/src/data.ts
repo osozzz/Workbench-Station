@@ -94,6 +94,8 @@ const failureMessages: Record<string, string> = {
   "settings-invalid": msg("This PC's settings file can't be read, so it wasn't changed. Copy the details below and report it."),
   "space-permission-declined": msg("Windows permission was declined, so the fast scan didn't run. Measure again and choose Yes, or use the normal mode."),
   "space-scan-failed": msg("The scan stopped before it finished. Nothing was changed. Try again, or use the normal mode."),
+  "cleanup-failed": msg("That item couldn't be cleaned, and nothing else was touched. The details say why."),
+  "cleanup-permission-declined": msg("Windows permission was declined, so nothing was cleaned."),
   "scanner-missing": msg("The space scanner isn't installed with this copy of the app. Reinstall Workbench Station to restore it."),
   unexpected: msg("Something unexpected stopped Workbench Station. Copy the details below and report it."),
 };
@@ -108,7 +110,7 @@ export function describeFailure(reason: unknown, fallback?: string): AppError {
   return fallback ? { message: fallback, detail: text } : { message: text };
 }
 
-async function read<T>(name: "plan" | "evaluation" | "logs" | "holds" | "comparison" | "space"): Promise<T> {
+async function read<T>(name: "plan" | "evaluation" | "logs" | "holds" | "comparison" | "space" | "cleanup"): Promise<T> {
   if (inApp) return invoke<T>("read_data", { name });
   const response = await fetch(`/__data/${name}`);
   return response.json() as Promise<T>;
@@ -197,6 +199,27 @@ export interface SpaceScan {
   largest: { path: string; bytes: number }[];
   types: { ext: string; bytes: number; files: number }[];
 }
+
+/** Something Clean-Workstation.ps1 can free: its size (null when only known after), its exact command and, for a
+ * build folder, where it is and when a file in it last changed. Show-only items are never cleaned. */
+export interface CleanupItem {
+  id: string;
+  command: string;
+  bytes: number | null;
+  footprint: number | null;
+  available: boolean;
+  admin: boolean;
+  showOnly: boolean;
+  path: string | null;
+  lastUsed: string | null;
+}
+
+/** The last measure of what can be cleaned, or null. */
+export const loadCleanup = () => read<{ generatedAt: string; items: CleanupItem[] } | null>("cleanup");
+/** Measures what can be cleaned. Read-only; it takes about a minute. */
+export const listCleanup = () => invoke<{ generatedAt: string; items: CleanupItem[] }>("cleanup_list");
+/** Cleans one confirmed item; resolves to how much free space it gave back. */
+export const runCleanup = (item: string, path: string | null) => invoke<{ freedBytes: number; skipped: number }>("cleanup_run", { item, path });
 
 /** The last space scan, or null if there's none yet. */
 export const loadSpace = () => read<SpaceScan | null>("space");
