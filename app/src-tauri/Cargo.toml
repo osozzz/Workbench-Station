@@ -2,6 +2,7 @@
 name = "workbench-station"
 version = "3.0.0"
 edition = "2021"
+default-run = "workbench-station"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
