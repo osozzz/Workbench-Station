@@ -1,21 +1,22 @@
-import { ArrowsLeftRight, BookOpenText, ClockCounterClockwise, DownloadSimple, GearSix, SquaresFour } from "@phosphor-icons/react";
+import { ArrowsLeftRight, BookOpenText, ClockCounterClockwise, DownloadSimple, GearSix, HardDrives, SquaresFour } from "@phosphor-icons/react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ComponentType } from "react";
 import { inApp } from "./data";
 import { msg, t } from "./i18n";
 
-export type View = "overview" | "updates" | "history" | "compare" | "guides" | "settings";
+export type View = "overview" | "updates" | "history" | "compare" | "space" | "guides" | "settings";
 
 const tabs: { view: View; label: string; Icon: ComponentType<{ size?: number; weight?: "regular" | "fill"; "aria-hidden"?: "true" }> }[] = [
   { view: "overview", label: msg("Overview"), Icon: SquaresFour },
   { view: "updates", label: msg("Updates"), Icon: DownloadSimple },
   { view: "history", label: msg("History"), Icon: ClockCounterClockwise },
   { view: "compare", label: msg("Compare"), Icon: ArrowsLeftRight },
+  { view: "space", label: msg("Space"), Icon: HardDrives },
   { view: "guides", label: msg("Guides"), Icon: BookOpenText },
   { view: "settings", label: msg("Settings"), Icon: GearSix },
 ];
 
-/** Ctrl+1 to Ctrl+6 open the views in tab order. */
+/** Ctrl+1 to Ctrl+7 open the views in tab order. */
 export const viewOrder = tabs.map((tab) => tab.view);
 
 /** Windows 11's caption glyphs, drawn on a 10 px grid. */

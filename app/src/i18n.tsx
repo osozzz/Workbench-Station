@@ -53,7 +53,7 @@ export function t(text: string, vars?: Vars): string {
 export function tn(count: number, one: string, other: string, vars?: Vars): string {
   const forms = current === "es" ? (esPlurals[other] ?? { one, other }) : { one, other };
   const form = new Intl.PluralRules(current).select(count) === "one" ? forms.one : forms.other;
-  return fill(form, { n: count, ...vars });
+  return fill(form, { n: new Intl.NumberFormat(current).format(count), ...vars });
 }
 
 /** Marks text that is translated later with t(), such as labels in a table, so the check can find it. */

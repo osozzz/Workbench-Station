@@ -10,7 +10,10 @@
 //! saber que es el mismo exige abrir cada archivo. El modo rápido sí lo cuenta una vez.
 //!
 //! Modo rápido (`--mft`): lee la tabla maestra de archivos (MFT) de una unidad NTFS de una sola pasada, como WizTree.
-//! Necesita permisos de administrador y también solo lee.
+//! Necesita permisos de administrador y también solo lee. Mide lo que cada archivo ocupa en el disco (clusters
+//! enteros, flujos con nombre, índices de carpetas), así que su total se acerca al espacio usado de la unidad.
+//!
+//! El reporte trae el tamaño y el espacio libre de la unidad (`volume`), para mostrar lo que ningún archivo explica.
 
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -180,6 +183,20 @@ fn read_one(scan: &Scan, id: usize, path: &Path) -> Vec<(usize, PathBuf)> {
         .collect()
 }
 
+/// Tamaño total y espacio libre de la unidad donde está la carpeta.
+fn volume(root: &Path) -> Option<(u64, u64)> {
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn GetDiskFreeSpaceExW(dir: *const u16, available: *mut u64, total: *mut u64, free: *mut u64) -> i32;
+    }
+    use std::os::windows::ffi::OsStrExt;
+    let wide: Vec<u16> = root.as_os_str().encode_wide().chain([0]).collect();
+    let (mut available, mut total, mut free) = (0u64, 0u64, 0u64);
+    // SAFETY: la ruta termina en 0 y los tres punteros apuntan a variables vivas.
+    let ok = unsafe { GetDiskFreeSpaceExW(wide.as_ptr(), &mut available, &mut total, &mut free) };
+    (ok != 0).then_some((total, free))
+}
+
 /// Arma el reporte: el árbol de carpetas (las pequeñas se suman en `other`), los archivos más grandes y el peso por tipo.
 fn report(measured: Measured, root: &Path, mode: &str, elapsed_ms: u128) -> Value {
     let Measured { dirs, largest, types, skipped } = measured;
@@ -210,11 +227,16 @@ fn report(measured: Measured, root: &Path, mode: &str, elapsed_ms: u128) -> Valu
     let mut types: Vec<(String, (u64, u64))> = types.into_iter().collect();
     types.sort_unstable_by_key(|t| std::cmp::Reverse(t.1 .0));
     types.truncate(TOP_TYPES);
+    let volume = volume(root).map(|(total, free)| json!({ "total": total, "free": free }));
     json!({
         "version": 1,
         "root": root.display().to_string(),
         "mode": mode,
+        // El modo normal mide el tamaño de cada archivo; el rápido, lo que ocupa en el disco.
+        "measure": if mode == "mft" { "on-disk" } else { "size" },
+        "volume": volume,
         "elapsedMs": elapsed_ms as u64,
+        "finishedAt": std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64),
         "bytes": bytes[0],
         "files": files[0],
         "folders": dirs.len() as u64,
@@ -227,7 +249,7 @@ fn report(measured: Measured, root: &Path, mode: &str, elapsed_ms: u128) -> Valu
 
 /// Modo rápido: lee la MFT de una unidad NTFS directamente del disco.
 mod mft {
-    use super::{Dir, Measured, NOT_ON_DISK, TOP_FILES};
+    use super::{Dir, Measured, TOP_FILES};
     use std::collections::HashMap;
     use std::fs::File;
     use std::io::{Error, ErrorKind, Read, Result, Seek, SeekFrom};
@@ -245,8 +267,8 @@ mod mft {
         name: String,
         /// Qué tan bueno es el nombre: 0 el de Windows, 1 POSIX, 2 el corto de DOS.
         rank: u8,
+        /// Bytes que ocupa en el disco.
         size: u64,
-        attrs: u32,
     }
 
     fn u16le(b: &[u8], o: usize) -> u16 {
@@ -330,7 +352,7 @@ mod mft {
         Some(found)
     }
 
-    fn read(recs: &mut Vec<Rec>, r: &mut [u8], index: usize) {
+    fn read(recs: &mut Vec<Rec>, r: &mut [u8], index: usize, cluster: u64) {
         if !fixup(r) || u16le(r, 0x16) & 1 == 0 {
             return;
         }
@@ -347,11 +369,6 @@ mod mft {
         }
         for (kind, a) in attributes(r) {
             match kind {
-                0x10 => {
-                    if let Some(v) = resident(a).filter(|v| v.len() >= 0x24) {
-                        rec.attrs = u32le(v, 0x20);
-                    }
-                }
                 0x30 => {
                     let Some(v) = resident(a).filter(|v| v.len() >= 0x42) else { continue };
                     let rank = match v[0x41] {
@@ -367,13 +384,14 @@ mod mft {
                         rec.rank = rank;
                     }
                 }
-                // Solo el contenido principal del archivo (sin nombre); los flujos alternos no se cuentan.
-                0x80 if a[9] == 0 => {
-                    if a[8] == 0 {
-                        rec.size = u32le(a, 0x10) as u64;
-                    } else if a.len() >= 0x38 && u64le(a, 0x10) == 0 {
-                        rec.size = u64le(a, 0x30);
-                    }
+                // Lo que ocupa en el disco: todo atributo guardado fuera del registro, sea el contenido, un flujo con
+                // nombre (el diario de cambios, los datos comprimidos de Windows) o el índice de una carpeta. Lo que
+                // cabe dentro del registro ya se cuenta en $MFT. Se suman los clusters que de verdad tiene asignados,
+                // no el tamaño declarado: $BadClus declara toda la unidad y los archivos dispersos tienen huecos.
+                // Un atributo partido en varios registros trae sus propios clusters en cada parte.
+                _ if a[8] == 1 && a.len() >= 0x40 => {
+                    let held = runs(a, u16le(a, 0x20) as usize).map(|r| r.iter().filter(|(lcn, _)| lcn.is_some()).map(|(_, n)| n).sum::<u64>());
+                    rec.size += held.unwrap_or(0) * cluster;
                 }
                 _ => {}
             }
@@ -421,7 +439,7 @@ mod mft {
                 let n = left.min(buf.len());
                 disk.read_exact(&mut buf[..n])?;
                 for r in buf[..n].chunks_exact_mut(size) {
-                    read(&mut recs, r, index);
+                    read(&mut recs, r, index, cluster);
                     index += 1;
                 }
                 left -= n;
@@ -459,10 +477,14 @@ mod mft {
         let mut types: HashMap<String, (u64, u64)> = HashMap::new();
         let mut largest: Vec<(u64, usize)> = Vec::new();
         for (i, rec) in recs.iter().enumerate() {
+            // El índice de una carpeta grande también ocupa disco: se suma a la propia carpeta.
+            if rec.used && rec.dir && slot[i] != usize::MAX {
+                dirs[slot[i]].own += rec.size;
+            }
             if !rec.used || rec.dir || rec.parent >= slot.len() || slot[rec.parent] == usize::MAX {
                 continue;
             }
-            let size = if rec.attrs & NOT_ON_DISK != 0 { 0 } else { rec.size };
+            let size = rec.size;
             let d = &mut dirs[slot[rec.parent]];
             d.own += size;
             d.files += 1;

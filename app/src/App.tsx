@@ -35,6 +35,7 @@ import { Guides } from "./views/Guides";
 import { History } from "./views/History";
 import { Overview, type Run } from "./views/Overview";
 import { Settings } from "./views/Settings";
+import { Space } from "./views/Space";
 import { Updates } from "./views/Updates";
 
 export function App() {
@@ -292,7 +293,7 @@ export function App() {
               </div>
             </div>
           )}
-          {!error && snapshot === null && view !== "settings" && view !== "guides" && view !== "compare" && <Skeleton view={view} />}
+          {!error && snapshot === null && view !== "settings" && view !== "guides" && view !== "compare" && view !== "space" && <Skeleton view={view} />}
           <div className="view" key={view}>
             {snapshot && view === "overview" && <Overview snapshot={snapshot} run={run} auditing={auditing} onAudit={audit} onOpenUpdates={() => setView("updates")} onError={setError} />}
             {snapshot && view === "updates" && <Updates
@@ -315,6 +316,7 @@ export function App() {
                 }}
               />}
             {view === "compare" && <Compare />}
+            {view === "space" && <Space onError={setError} />}
             {view === "guides" && <Guides guide={guide} onSelect={setGuide} />}
             {view === "settings" && <Settings onError={setError} onLanguage={changeLanguage} onCheckForUpdates={findAppUpdate} />}
           </div>
@@ -346,6 +348,7 @@ function Skeleton({ view }: { view: View }) {
     updates: [pane("list", 6, "title")],
     history: [pane("latest", 2, "title"), pane("earlier", 2, "none")],
     compare: [],
+    space: [],
     guides: [],
     settings: [],
   }[view];
