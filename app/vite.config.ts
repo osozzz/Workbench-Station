@@ -3,7 +3,8 @@ import { join, resolve } from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 
-const reports = resolve(__dirname, "..", "reports");
+// WORKBENCH_REPORTS points the preview at other reports, such as made-up ones for screenshots.
+const reports = process.env.WORKBENCH_REPORTS ? resolve(process.env.WORKBENCH_REPORTS) : resolve(__dirname, "..", "reports");
 
 // Browser preview only: serves the local reports folder the way the Tauri commands do in the app.
 function reportsBridge(): Plugin {

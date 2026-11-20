@@ -110,6 +110,34 @@ A PR should include:
 
 Do not bundle unrelated refactors into a PR.
 
+## Building and testing
+
+You need Windows 10 or 11 with Windows PowerShell 5.1 and PowerShell 7, [Pester](https://pester.dev) 6 and PSScriptAnalyzer, Node.js with pnpm, Rust (`app/src-tauri/rust-toolchain.toml` picks the version) and Python 3 for some validators.
+
+The desktop app:
+
+```powershell
+cd app
+pnpm install
+pnpm tauri dev                          # run it from this repository
+cargo build --bin workbench-space       # in app\src-tauri, once: the Space scanner the app starts
+pnpm build                              # TypeScript, the Spanish check and the frontend build
+pnpm tauri build                        # the installer, in app\src-tauri\target\release\bundle\nsis
+```
+
+The browser preview (`pnpm dev`) shows the app without Tauri, reading `reports/`. It never runs a command: the buttons that would are disabled. Point `WORKBENCH_REPORTS` at a folder of made-up reports for screenshots.
+
+Tests, as CI runs them (`.github/workflows/validate.yml`):
+
+```powershell
+Invoke-Pester -Path tests/pester                                  # PowerShell 7
+./tests/static-analysis/validate_psscriptanalyzer_gate.ps1
+./tests/static-analysis/validate_windows_powershell_compatibility.ps1
+cd app/src-tauri; cargo test
+```
+
+Run the Pester tests on Windows PowerShell 5.1 too, since `Run-Audit.cmd` and the app use it. There Pester loads by path: `Import-Module (Get-Module -ListAvailable Pester | Sort-Object Version -Descending | Select-Object -First 1).Path`. Scripts in `scripts/` stay ASCII only, because 5.1 reads a UTF-8 file without BOM as ANSI.
+
 ## Repository scope
 
 Version reusable scripts, policies, configuration, documentation, schemas, fixtures, and validation assets.

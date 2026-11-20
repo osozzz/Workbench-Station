@@ -1,5 +1,5 @@
 name: Bug report
-description: Report incorrect audit, detection, comparison, or repository-tooling behavior.
+description: For contributors. Report incorrect audit, detection, comparison, or repository-tooling behavior in the engine. Using the app? Choose App problem.
 title: "[Bug]: "
 labels:
   - bug
