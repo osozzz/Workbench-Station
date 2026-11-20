@@ -4,8 +4,23 @@ All notable changes to this workstation toolkit are documented here.
 
 ## Unreleased
 
+## 3.0.0 — 2026-11-20
+
+Workbench Station is now a desktop app for Windows, in English and Spanish. It audits the PC, shows every update with its risk and exact command, and installs only what you confirm, with no terminal. It also shows what fills your drives and frees space one confirmed item at a time. The PowerShell engine keeps every v2 guarantee and still runs on its own.
+
 ### Added
 
+- **The desktop app** (`app/`, Tauri 2 and React). **Overview** shows the updates grouped by source and colored by risk, what needs you and how the PC meets its standard. **Updates** filters by status and risk and confirms each selection with its versions, risk, reversibility and exact command. A run shows each action live, the apps to close and a verification audit, and **History** explains failures. Windows asks for permission once, only after the confirmation. The app only starts the scripts in `scripts/` and reads their reports.
+- First run: a welcome that says what the app does and never does, then project folders (picked with the Windows folder picker; a whole drive is refused), the first audit and how installing works. Settings and reports live in `%LOCALAPPDATA%\com.osozzz.workbenchstation`, so app updates keep them. `Refresh-Workstation.ps1` and `Update-Workstation.ps1` take `-DataDirectory` for that folder.
+- The installer: per user, so no administrator rights; English and Spanish; the app's icon and artwork; publisher, version and description in the setup file and in **Settings > Apps**. **Settings > About** shows the version, license, source and where data is kept.
+- A glass design over a circuit-board scene, with a floating title bar that holds the tabs and the window buttons, and its own tooltips, scrollbars, loading skeletons and empty states. It behaves like a Windows app: no browser menu or browser keys, Ctrl+1 to Ctrl+7 switch views, and it remembers the window's size and place.
+- Install feedback outside the window: progress on the taskbar button (red after a failure), a flash and a Windows notification when an install ends in the background, and a prompt if you close the window during one. Errors are explained in the app's own words, with the technical detail one click away.
+- **Guides**: 17 short articles in the app on how it works, the words it uses, the updates that need you and what to do when one fails. They need no internet connection.
+- **Export report** on Overview saves the last audit, its evaluation and its plan as one Markdown file.
+- **What changes in {version}** on each WinGet update reads that version's release notes from the WinGet catalog, only when you click it.
+- An optional restore point before installing (`Update-Workstation.ps1 -RestorePoint`). If it can't be created or confirmed, nothing is installed.
+- A notification area icon with the number of updates ready, and **Settings > Window > Keep running in the notification area when closed**.
+- **Settings > Automatic audit**: daily or weekly, as a read-only Windows Task Scheduler task for the current user without elevation. It notifies you only when updates are ready or the audit failed, and the uninstaller removes it.
 - Update holds: an update can wait a week or stay on the installed version. Holds live in `updates.holds` of the local configuration, and the plan leaves held actions out, so the command line, the tray count and the scheduled audit respect them too. In the desktop app, each update offers "Remind me in 7 days" and "Stay on …", and **On hold** lists them with **Resume**.
 - Compare in the desktop app: a new **Compare** view exports this PC's audit (a JSON report, with a note on what it contains) and compares it with an audit exported on another PC through `Compare-Workstations.ps1`. Differences are grouped by category and described in words, such as "Only on this PC", the two values, or the fields that changed. The last comparison shows again when you come back.
 - Updates for the desktop app: once a day (or from **Settings > Check for updates**) it looks for a new version on GitHub Releases. The new version downloads in the background and installs when you choose **Restart to update**, never during an install or an audit. Updates are signed and verified against the app's public key.
@@ -17,8 +32,15 @@ All notable changes to this workstation toolkit are documented here.
 - **Free up space** in the Space view and `scripts/Clean-Workstation.ps1`: the pnpm store, the npm, pip and Pub caches and Docker's unused data (each with its own tool), temporary files unchanged for 7 days and build folders in the project folders (to the Recycle Bin), and, with administrator permission, compacting WSL and Docker disks and Windows Update leftovers. Each item shows its size and exact command and runs only after you confirm it; the Recycle Bin and Downloads are only shown. A build folder is accepted only inside a project folder, next to its project file and not as a link. Rules in `docs/policies/cleanup-safety.md`.
 - A README for people who use the app: what it does, how it stays safe, requirements, install and how to check a download, privacy, uninstall and FAQ, with screenshots in both themes taken from made-up reports. Governance, the roadmap and the release steps moved to `docs/README.md`. New **App problem** issue form, `SECURITY.md` names the latest release as the supported one, and `CONTRIBUTING.md` explains how to build and test. The browser preview reads `WORKBENCH_REPORTS` when set.
 
+
+### Changed
+
+- The app and the repository are now **Workbench Station** (`osozzz/Workbench-Station`; the old URL redirects). The app's identifier is `com.osozzz.workbenchstation`.
+
 ### Fixed
 
+- Switching views no longer shifts the content sideways when one view needs a scrollbar and another doesn't, and Updates shows a single line instead of an empty list and dock before the first audit.
+- The `desktop-app` CI job caches Tauri's tools and retries the build, because downloading NSIS sometimes fails on GitHub runners.
 - On Windows PowerShell 5.1, a command that finished almost at once could be logged without an exit code, so an update that succeeded could show as failed. The executor now starts commands with `Process.Start`, which keeps the exit code. A prompt still reads end-of-input, and a child process left running still can't hold the action open.
 - Comparing two real audit reports failed when WinGet listed a package more than once ("duplicate reliable packageId"), which `winget list` does for each architecture and each version installed side by side. One package ID's installations are now compared as one set, and their versions as the sorted list of distinct versions.
 
