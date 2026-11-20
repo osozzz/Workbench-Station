@@ -1,154 +1,132 @@
-# Workbench Station
+<p align="center">
+  <img src="docs/assets/social-preview.png" alt="Workbench Station: keeps a Windows developer PC up to date. See how risky each update is and install only what you confirm." width="840">
+</p>
 
-Workbench Station keeps a Windows developer PC up to date with a declared standard. It is a desktop app (`app/`) on top of a PowerShell engine (`scripts/`), which also runs on its own from the command line. It audits what is installed, evaluates it against the workstation policy, and (in upcoming releases) plans and applies the updates. Comparing two PCs is available as an extra.
+<p align="center">
+  <a href="https://github.com/osozzz/Workbench-Station/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/osozzz/Workbench-Station?label=release"></a>
+  <a href="https://github.com/osozzz/Workbench-Station/actions/workflows/validate.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/osozzz/Workbench-Station/validate.yml?branch=main&label=CI"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/osozzz/Workbench-Station"></a>
+  <a href="https://github.com/osozzz/Workbench-Station/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/osozzz/Workbench-Station/total"></a>
+</p>
 
-## Current phase
+<p align="center">
+  <a href="https://github.com/osozzz/Workbench-Station/releases/latest"><b>Download for Windows</b></a>
+  ·
+  <a href="#install">Install</a>
+  ·
+  <a href="PRIVACY.md">Privacy</a>
+  ·
+  <a href="#command-line-engine">Command line</a>
+</p>
 
-**v2.0.0 — Controlled Updates**
+Workbench Station keeps the apps and developer tools on a Windows PC up to date. It audits what is installed, shows every update it found with how risky it is and the exact command it will run, and installs only the ones you pick. It also shows what takes up space on your drives and helps you free it, one confirmed item at a time.
 
-The toolkit audits a PC, evaluates it against `config/workstation.policy.json`, plans every available update (WinGet, Microsoft Store, Chocolatey, WSL, npm-registry CLIs, Python and Android tools, policy deviations), and applies the updates you select with `Run-Update.cmd`, confirming each one (`docs/policies/update-execution-safety.md`).
+It is a desktop app in English and Spanish, built on a PowerShell engine you can also run on its own.
 
-## Repository model
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/screenshots/overview-light.png">
+  <img alt="The Overview: 42 updates ready to install, grouped by source and colored by risk, next to what needs you and how this PC meets its standard." src="docs/assets/screenshots/overview-dark.png">
+</picture>
 
-This public repository stores reusable scripts, policies, configuration, schemas, validation assets, and documentation only.
+## What it does
 
-Generated audits, inventories, comparisons, machine names, local paths, and other workstation-specific outputs remain local to each clone and are excluded from version control.
+- **Audit** Windows, WinGet, Chocolatey and Microsoft Store apps, Windows Update, WSL, editors and their extensions, and the developer toolchains: Node.js, npm and pnpm, Java, Flutter and Android, Python, .NET, Rust and Go. It also checks PATH, your projects and their Git repositories. An audit only reads.
+- **Updates** lists everything that can be updated, grouped by source, with its risk, its current and new version and its exact command. Install the ones you select, put one off for a week, or stay on a version.
+- **History** shows how each install went.
+- **Your standard** compares the PC with a declared standard (`config/workstation.policy.json`), such as "the current Node.js LTS" or "no duplicate PATH entries".
+- **Compare** puts this PC next to another one: apps, tool versions, PATH, projects and Git.
+- **Space** shows what fills a drive or folder as a map you can open folder by folder, with the largest files and the size of each file type. Its fast mode reads an NTFS drive's file table, like WizTree, and adds up to the space Windows reports as used.
+- **Free up space** lists package caches, build folders in your projects, old temporary files, WSL and Docker disks and Windows Update leftovers, each with its size and exact command.
+- **Automatic audit** runs on a schedule and tells you when updates are waiting. The app itself updates in the background and installs the new version when you restart it.
 
-## Documentation
+<p>
+  <img alt="Updates: each update with its risk mark and versions, and the selected one with its exact command." src="docs/assets/screenshots/updates-dark.png" width="49%">
+  <img alt="Space: a map of drive C: by folder, with its used and free space." src="docs/assets/screenshots/space-dark.png" width="49%">
+</p>
 
-Canonical documentation lives in `/docs`.
+## How it stays safe
 
-Start with:
+- Nothing changes on its own. An audit, a comparison and a space scan only read. Installing an update or cleaning an item happens only after you confirm it, and you see the exact command first.
+- Updates that need administrator rights ask Windows each time. The app itself installs and runs without them.
+- An update plan older than a day is locked until you audit again, so it never installs against an old picture of the PC.
+- Cleaning uses each tool's own command (`npm cache clean`, `docker system prune` without volumes…), and folders go to the Recycle Bin. Build folders count only inside your project folders and next to their project file. Your personal files are never touched. The rules are in [`docs/policies/cleanup-safety.md`](docs/policies/cleanup-safety.md) and [`docs/policies/update-execution-safety.md`](docs/policies/update-execution-safety.md).
+- Reports stay on your PC. Nothing is sent anywhere except what [`PRIVACY.md`](PRIVACY.md) lists.
 
-- `docs/README.md`
-- `docs/governance/repository-governance.md`
-- `docs/governance/issue-project-model.md`
-- `docs/releases/versioning-and-releases.md`
-- `docs/policies/audit-safety.md`
-- `docs/architecture/audit-system-roadmap.md`
+## Requirements
 
-The GitHub Wiki, when used, is a navigation/help layer only and must not override canonical repository documentation.
+- Windows 11, or Windows 10 22H2 or later, 64-bit.
+- Microsoft Edge WebView2, which Windows 11 already has. On Windows 10, the installer downloads it if it's missing.
+- [WinGet](https://learn.microsoft.com/windows/package-manager/winget/) (App Installer) to audit and update most apps. It comes with Windows 11 and current Windows 10.
 
-## Current audit system
+## Install
 
-The read-only audit covers Windows and PowerShell, WinGet applications and updates, JavaScript/Java/Flutter/Android/Python/.NET/Rust/Go toolchains, developer CLIs, PATH and approved environment variables, command precedence, local projects, Git health and hygiene, latest-version intelligence, policy evaluation, and an optional cross-PC comparison. The full coverage statement and its limitations are in `docs/architecture/audit-system-roadmap.md`.
+1. Download `Workbench-Station_<version>_x64-setup.exe` from the [latest release](https://github.com/osozzz/Workbench-Station/releases/latest).
+2. Run it. It installs for your user only, so it doesn't ask for administrator rights.
+3. The installer isn't code-signed yet, so Windows SmartScreen may say it "protected your PC". Choose **More info**, then **Run anyway**. Signing is on its way through [SignPath Foundation](#code-signing-policy).
 
-## Quick start
+On first run, the app asks for your project folders, so it can check their dependencies and Git, then walks you through the first audit.
 
-```powershell
-.\Run-Audit.cmd                                   # audit this PC; reports go to .\reports (ignored by Git)
-.\Run-Evaluate.cmd <report.json>                  # evaluate the report against the workstation policy
-.\Run-Plan.cmd <report.json>                      # list everything that can be updated (runs nothing)
-.\Run-Update.cmd <update-plan.json> -Risk low     # preview updates; add -Apply to run them, confirming each
-.\Run-Compare.cmd <reference.json> <target.json>  # optional: compare two audit reports
-```
+### Check your download
 
-Optional project and Git discovery needs `config\workstation.local.json`; see `config/README.md`. The step-by-step procedure for auditing and evaluating a PC is in `docs/audit/running-the-audit.md`.
-
-## Desktop app
-
-Workbench Station (`app/`) is a Tauri app that does the same work without a terminal: it audits the PC, lists the updates, installs the ones you select, and shows live progress and past runs. **Compare** exports this PC's audit and compares it with an audit exported on another PC, both read-only. **Space** shows what takes up room on a drive or folder: a treemap you can open folder by folder, the largest files and the size per file type. Its fast mode reads an NTFS drive's file table with administrator rights and adds up to the space Windows reports as used; measuring never changes anything. **Free up space** lists caches, build folders in your projects, old temporary files, WSL and Docker disks and Windows Update leftovers, each with its size and exact command, and cleans one item at a time after you confirm it (`scripts/Clean-Workstation.ps1`, rules in `docs/policies/cleanup-safety.md`). The app is in English and Spanish, following Windows unless you pick one in **Settings**; its text lives in `app/src/es.ts` and `app/src/guides.es.ts`, and `pnpm build` fails if a text has no Spanish. It only starts the scripts in `scripts/` and reads their reports, so every rule in `docs/policies/update-execution-safety.md` still applies.
-
-```powershell
-cd app
-pnpm install
-pnpm tauri dev     # run it from this repository
-pnpm tauri build   # build the installer into app\src-tauri\target\release\bundle\nsis
-```
-
-Building needs Node.js, pnpm, and Rust. The installed app needs no terminal. On first run it asks for your project folders, so its audits include local project and Git discovery, and walks you through the first audit. It keeps those settings and its reports in `%LOCALAPPDATA%\com.osozzz.workbenchstation`, so they survive app updates.
-
-The installer runs for the current user only, so it needs no administrator rights, and it is available in English and Spanish. It is not code-signed yet, so a downloaded copy shows a Windows SmartScreen warning: choose **More info**, then **Run anyway**. To remove the app, use **Settings > Apps** in Windows; the uninstaller can also delete your settings and reports.
-
-The installed app checks GitHub Releases for a new version once a day, unless **Settings > Check for updates automatically** is off (**Check for updates** checks now). A new version downloads in the background and installs only when you choose **Restart to update**, never during an install or an audit. Every update is signed, and the app refuses one whose signature doesn't match the public key in `app/src-tauri/tauri.conf.json`.
-
-### Releasing the desktop app
-
-One time: generate the update signing key with `cd app; pnpm tauri signer generate -w "$env:USERPROFILE\.tauri\workbench-station.key"`. Put its public key in `plugins.updater.pubkey` in `app/src-tauri/tauri.conf.json`. Add the private key and its password as the repository secrets `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, and keep a backup outside the repository: without it, installed apps can't be updated again.
-
-For each release:
-
-1. Set the version in `app/package.json`, `app/src-tauri/Cargo.toml` and `app/src-tauri/tauri.conf.json`, and rename `## Unreleased` in `CHANGELOG.md` to `## <version> — <date>`. Merge that.
-2. Tag it: `git tag v<version>` and `git push origin v<version>`.
-3. `.github/workflows/release.yml` checks that the tag matches the app version and builds the signed installer. It then creates a **draft** release with the installer, its `.sig`, `latest.json`, `SHA256SUMS.txt` and the CHANGELOG section as notes, and attests the installer's build provenance.
-4. Review the draft and publish it. Installed apps find it within a day. Anyone can check a download with `gh attestation verify <installer> --repo osozzz/Workbench-Station` or against `SHA256SUMS.txt`.
-
-The app icon and installer artwork come from `app/icon.svg` (`pnpm tauri icon icon.svg`) and `app/src-tauri/installer/`. The visual system (palette, type, glass, motion, voice) is documented in `DESIGN.md`.
-
-## Roadmap
-
-- `v0.1.0` — Initial Audit Skeleton
-- `v0.2.0` — Repository Foundation
-- `v0.3.0` — Audit Core
-- `v0.4.0` — Runtime & SDK Detection
-- `v0.5.0` — PATH & Environment Intelligence
-- `v0.6.0` — Project & Git Discovery
-- `v0.7.0` — Version Intelligence
-- `v0.8.0` — Cross-PC Comparison
-- `v0.9.0` — Audit Hardening
-- `v1.0.0` — Baseline Ready
-- `v1.1.0` — Policy Evaluation
-- `v1.2.0` — Update Plan
-- `v1.3.0` — Update Coverage
-- `v2.0.0` — Controlled Updates
-- `v2.1.0` — Batch Updates
-- `v2.2.0` — Reliable Updates
-- `v2.3.0` — Full Coverage
-
-## Clone
-
-With GitHub CLI:
+Each release lists the installer's SHA256 in `SHA256SUMS.txt`, and GitHub records how it was built.
 
 ```powershell
-gh repo clone osozzz/Workbench-Station
-cd Workbench-Station
+Get-FileHash .\Workbench-Station_3.0.0_x64-setup.exe -Algorithm SHA256   # compare with SHA256SUMS.txt
+gh attestation verify .\Workbench-Station_3.0.0_x64-setup.exe --repo osozzz/Workbench-Station
 ```
 
-Or with Git:
-
-```powershell
-git clone https://github.com/osozzz/Workbench-Station.git
-cd Workbench-Station
-```
-
-## Repository workflow
-
-- `main` is the only permanent branch.
-- Changes use short-lived branches.
-- Normal changes go through Pull Requests.
-- Squash merge is the default strategy.
-- Generated workstation outputs are never committed.
-- Issues are the source of truth for executable work.
-- Project fields handle planning metadata such as Status, Priority, Area, and Risk.
-- Native parent/sub-issue and blocking relationships are preferred over duplicated status labels.
-
-See `CONTRIBUTING.md` for the full workflow.
-
-## Safety
-
-Audit functionality is read-only by default.
-
-It must not silently:
-
-- install or uninstall software;
-- modify PATH or environment variables;
-- delete branches or worktrees;
-- upgrade dependencies;
-- rewrite Git history;
-- expose arbitrary environment variables or secrets.
-
-See `SECURITY.md` and `docs/policies/audit-safety.md`.
+The attestation proves that the file was built from this repository by [`release.yml`](.github/workflows/release.yml) on GitHub Actions.
 
 ## Privacy
 
-No account, no telemetry. Reports and settings stay on this PC. The app checks GitHub for a new version once a day (you can turn it off in Settings), and an audit asks public sources for the latest version of each tool. Details in [`PRIVACY.md`](PRIVACY.md).
+No account, no telemetry. Reports and settings stay in `%LOCALAPPDATA%\com.osozzz.workbenchstation`. The app checks GitHub for a new version of itself once a day, which you can turn off in **Settings**. An audit asks public sources for the latest version of each tool. Details in [`PRIVACY.md`](PRIVACY.md).
+
+## Uninstall
+
+Windows **Settings > Apps > Installed apps > Workbench Station > Uninstall**. The uninstaller also removes the automatic audit, and it can delete your settings and reports.
+
+## FAQ
+
+**Does it update anything without asking?**
+No. Even the automatic audit only reads and then tells you what it found.
+
+**Why does an update ask for administrator rights?**
+Some installers need them, such as system-wide apps, Chocolatey and Windows components. Windows asks for each one, and you can say no.
+
+**What is "Your standard"?**
+A list of rules your PC should meet, in `config/workstation.policy.json`. The app shows the ones that aren't met and, when an update can fix one, adds it to the list.
+
+**Can I use it on a PC without the app?**
+Yes. The engine is plain PowerShell; see [Command-line engine](#command-line-engine).
+
+**How do I report a problem?**
+[Open an issue](https://github.com/osozzz/Workbench-Station/issues/new/choose) with **App problem**. For anything security-related, see [`SECURITY.md`](SECURITY.md).
+
+## Command-line engine
+
+The app runs the PowerShell scripts in `scripts/`, and you can run them yourself from a clone. They work on Windows PowerShell 5.1 and PowerShell 7.
+
+```powershell
+.\Run-Audit.cmd                                   # audit this PC; reports go to .\reports
+.\Run-Evaluate.cmd <report.json>                  # evaluate the report against the standard
+.\Run-Plan.cmd <report.json>                      # list everything that can be updated (runs nothing)
+.\Run-Update.cmd <update-plan.json> -Risk low     # preview updates; add -Apply to run them, confirming each
+.\Run-Compare.cmd <reference.json> <target.json>  # compare two audit reports
+.\scripts\Clean-Workstation.ps1 -List             # what can be cleaned, with sizes and commands
+```
+
+Project and Git discovery needs `config\workstation.local.json`; see [`config/README.md`](config/README.md). The full procedure is in [`docs/audit/running-the-audit.md`](docs/audit/running-the-audit.md).
+
+## Contributing
+
+Issues and pull requests are welcome. [`CONTRIBUTING.md`](CONTRIBUTING.md) explains how to build the app, run the tests and propose a change. The documentation, the roadmap and the release process are in [`docs/`](docs/README.md).
 
 ## Code signing policy
 
 Windows installers are built from this repository by [`release.yml`](.github/workflows/release.yml) on GitHub Actions; nothing is built or signed on a personal machine. Every release is approved by hand before it is published.
 
 | Role | Who |
-|---|---|
+| --- | --- |
 | Authors (committers) | [Alejandro Osorno](https://github.com/osozzz) |
 | Reviewers | [Alejandro Osorno](https://github.com/osozzz) |
 | Approvers | [Alejandro Osorno](https://github.com/osozzz) |
@@ -157,4 +135,4 @@ Privacy: see [`PRIVACY.md`](PRIVACY.md). This program will not transfer any info
 
 ## License
 
-MIT. See `LICENSE`.
+MIT. See [`LICENSE`](LICENSE).

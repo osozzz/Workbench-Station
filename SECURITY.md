@@ -1,6 +1,6 @@
 # Security Policy
 
-Workstation is a public repository for reusable developer-workstation audit and standardization logic. Machine-specific diagnostics, environment inventories, local paths, and generated reports must remain local and must not be committed.
+Workbench Station is a public repository with a desktop app and the PowerShell engine behind it, which audit and update developer workstations. Machine-specific diagnostics, environment inventories, local paths, and generated reports must remain local and must not be committed.
 
 ## Reporting a vulnerability
 
@@ -25,9 +25,13 @@ Generated workstation outputs belong in local ignored directories only.
 
 ## Supported versions
 
-Before v1.0.0, only the latest `main` and active release candidate are supported.
+Only the [latest release](https://github.com/osozzz/Workbench-Station/releases/latest) gets security fixes. The desktop app updates itself to it (unless automatic update checks are turned off in Settings), so the fix for a report ships as a new release, not a patch to an older one.
 
-After v1.0.0, the support policy tracks the current production release unless a later security policy explicitly changes it.
+| Version | Supported |
+| --- | --- |
+| Latest release | Yes |
+| Older releases | No; update to the latest |
+| `main` | Yes, for the command-line engine run from a clone |
 
 ## Dependencies
 
