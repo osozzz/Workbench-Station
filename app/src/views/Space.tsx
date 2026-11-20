@@ -2,6 +2,7 @@ import { CaretRight, FolderOpen, HardDrives } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { describeFailure, inApp, listDrives, loadSpace, pickFolder, scanSpace, type AppError, type SpaceNode, type SpaceScan } from "../data";
 import { describeAge, language, t, tn } from "../i18n";
+import { Cleanup } from "./Cleanup";
 
 const units = ["B", "KB", "MB", "GB", "TB"];
 
@@ -300,6 +301,8 @@ export function Space({ onError }: { onError(error: AppError | null): void }) {
           </div>
         </>
       )}
+
+      <Cleanup onError={onError} />
     </>
   );
 }

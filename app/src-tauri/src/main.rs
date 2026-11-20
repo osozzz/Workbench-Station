@@ -82,6 +82,7 @@ fn read_data(app: AppHandle, name: String) -> Result<Value, String> {
         "comparison" => Ok(read_json(&reports.join("comparison").join("comparison.json"))),
         // Its own folder, so the exported audit and the comparison never include it.
         "space" => Ok(read_json(&reports.join("space").join("space.json"))),
+        "cleanup" => Ok(read_json(&reports.join("space").join("cleanup.json"))),
         _ => Err(format!("Unknown data set: {name}")),
     }
 }
@@ -587,6 +588,75 @@ async fn scan_space(app: AppHandle, path: String, fast: bool) -> Result<Value, V
     Ok(read_json(&out))
 }
 
+/// What can be cleaned, with each item's size and exact command. Read-only.
+#[tauri::command]
+async fn cleanup_list(app: AppHandle) -> Result<Value, Value> {
+    let script = root(&app).map_err(unexpected)?.join("scripts").join("Clean-Workstation.ps1");
+    let data = data_root(&app).map_err(unexpected)?;
+    let out = data.join("reports").join("space").join("cleanup.json");
+    fs::create_dir_all(out.with_file_name("")).map_err(unexpected)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let args = [OsStr::new("-List"), OsStr::new("-DataDirectory"), data.as_os_str(), OsStr::new("-OutputPath"), out.as_os_str()];
+        run_hidden(&script, args, "cleanup-failed")?;
+        Ok(read_json(&out))
+    })
+    .await
+    .map_err(unexpected)?
+}
+
+/// Cleans one item the person confirmed. The engine checks it again: a folder must be a build folder inside the
+/// project folders, and only the cleanup tools' own commands or the Recycle Bin remove anything. The items that need
+/// administrator rights ask Windows each time, and nothing from the page reaches their command line but the item.
+#[tauri::command]
+async fn cleanup_run(app: AppHandle, item: String, path: Option<String>) -> Result<Value, Value> {
+    const PLAIN: [&str; 7] = ["pnpm-store", "npm-cache", "pip-cache", "pub-cache", "docker", "temp", "build-folder"];
+    const ELEVATED: [&str; 2] = ["wsl-disks", "windows-update"];
+    let elevated = ELEVATED.contains(&item.as_str());
+    if !elevated && !PLAIN.contains(&item.as_str()) {
+        return Err(failure("unexpected", format!("Unknown cleanup item: {item}")));
+    }
+    let script = root(&app).map_err(unexpected)?.join("scripts").join("Clean-Workstation.ps1");
+    let data = data_root(&app).map_err(unexpected)?;
+    let out = data.join("reports").join("space").join("cleanup-result.json");
+    fs::create_dir_all(out.with_file_name("")).map_err(unexpected)?;
+    let _ = fs::remove_file(&out);
+
+    tauri::async_runtime::spawn_blocking(move || {
+        if !elevated {
+            let mut args = vec![OsStr::new("-Item"), OsStr::new(&item)];
+            if let Some(folder) = path.as_deref() {
+                args.extend([OsStr::new("-Path"), OsStr::new(folder)]);
+            }
+            args.extend([OsStr::new("-Confirmed"), OsStr::new("-DataDirectory"), data.as_os_str(), OsStr::new("-OutputPath"), out.as_os_str()]);
+            run_hidden(&script, args, "cleanup-failed")?;
+            return Ok(read_json(&out));
+        }
+        let quoted = |path: &Path| path.display().to_string().replace('\'', "''");
+        let inner = format!(
+            "-NoProfile -ExecutionPolicy Bypass -File \"{}\" -Item {item} -Confirmed -DataDirectory \"{}\" -OutputPath \"{}\"",
+            quoted(&script),
+            quoted(&data),
+            quoted(&out)
+        );
+        let elevate = format!(
+            "try {{ $p = Start-Process powershell.exe -Verb RunAs -WindowStyle Hidden -PassThru -ErrorAction Stop -ArgumentList '{inner}' }} \
+             catch {{ exit {PERMISSION_DECLINED} }}; $null = $p.Handle; $p.WaitForExit(); exit $p.ExitCode"
+        );
+        let output = Command::new("powershell.exe")
+            .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &elevate])
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+            .map_err(|e| failure("powershell-unavailable", e))?;
+        match output.status.code() {
+            Some(0) => Ok(read_json(&out)),
+            Some(PERMISSION_DECLINED) => Err(failure("cleanup-permission-declined", "Windows UAC prompt declined.")),
+            code => Err(failure("cleanup-failed", format!("Exit code {code:?}."))),
+        }
+    })
+    .await
+    .map_err(unexpected)?
+}
+
 #[tauri::command]
 async fn update(app: AppHandle, action_ids: Vec<String>, restore_point: bool) -> Result<(), Value> {
     if action_ids.is_empty() || !action_ids.iter().all(|id| is_action_id(id)) {
@@ -683,7 +753,7 @@ fn main() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![read_data, save_folders, save_holds, pick_folder, refresh, update, export_report, export_audit, compare_with, release_notes, open_link, set_tray_status, launch_mode, audit_schedule, set_audit_schedule, drives, scan_space])
+        .invoke_handler(tauri::generate_handler![read_data, save_folders, save_holds, pick_folder, refresh, update, export_report, export_audit, compare_with, release_notes, open_link, set_tray_status, launch_mode, audit_schedule, set_audit_schedule, drives, scan_space, cleanup_list, cleanup_run])
         .run(tauri::generate_context!())
         .expect("the Workbench Station window could not start");
 }
