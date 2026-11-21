@@ -113,7 +113,7 @@ function LanguageSetting({ onLanguage }: { onLanguage(choice: Language | "window
       <div className="pane-head">
         <div>
           <h2 className="section-title">{t("Language")}</h2>
-          <p className="pane-note">{t("The names and messages of each update come from the audit and stay in English.")}</p>
+          <p className="pane-note">{t("Reports and exported files stay in English, so other tools read them the same.")}</p>
         </div>
         <div className="segments" role="group" aria-label={t("Language")}>
           {choices.map(([value, label]) => (
