@@ -4,7 +4,7 @@ All notable changes to this workstation toolkit are documented here.
 
 ## Unreleased
 
-## 3.0.0 — 2026-11-20
+## 3.0.0 — 2026-11-21
 
 Workbench Station is now a desktop app for Windows, in English and Spanish. It audits the PC, shows every update with its risk and exact command, and installs only what you confirm, with no terminal. It also shows what fills your drives and frees space one confirmed item at a time. The PowerShell engine keeps every v2 guarantee and still runs on its own.
 
