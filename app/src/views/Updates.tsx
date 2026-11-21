@@ -1,4 +1,5 @@
 import { ArrowCounterClockwise, ArrowSquareOut, BookOpenText, Clock, PushPin, Sparkle, SquaresFour, WarningCircle } from "@phosphor-icons/react";
+import { engineText } from "../engine-text";
 import { useMemo, useRef, useState } from "react";
 import { ageInHours, describeFailure, inApp, localDate, openLink, releaseNotes, sourceName, type Action, type Hold, type Risk, type Snapshot } from "../data";
 import { guideForAction, type GuideId } from "../guides";
@@ -57,7 +58,7 @@ function ActionDetail(props: { action: Action; locked: boolean; onHold(until: st
         <span>{action.reversible ? t("Can be undone") : t("Cannot be undone")}</span>
         <span>{sourceName(action.source.type)}</span>
       </p>
-      <p>{action.message}</p>
+      <p>{engineText(action.message)}</p>
       {action.command ? <Command text={action.command} /> : <p className="detail-note">{t("This one has no command. You do it yourself.")}</p>}
       {blocked && <p className="detail-note">{t("High-risk updates do not run from here.")}</p>}
       {action.source.type === "winget" && action.subjectId?.startsWith("winget:") && action.targetVersion && (
@@ -199,7 +200,7 @@ export function Updates(props: {
             <ul className="rows">
               {snapshot.holds.map((h) => (
                 <li className="row" key={h.actionId}>
-                  <span className="row-title">{h.title}</span>
+                  <span className="row-title">{engineText(h.title)}</span>
                   <span className="row-note">{h.until ? t("Back on {day}", { day: describeDay(h.until) }) : t("Until you resume it")}</span>
                   <div className="row-actions">
                     <button className="link" disabled={!inApp || locked} onClick={() => changeHolds(snapshot.holds.filter((other) => other.actionId !== h.actionId))}>
@@ -225,14 +226,14 @@ export function Updates(props: {
                   <div className="update" key={action.actionId} data-focused={isFocused || undefined}>
                     <input
                       type="checkbox"
-                      aria-label={t("Select {title}", { title: action.title })}
+                      aria-label={t("Select {title}", { title: engineText(action.title) })}
                       disabled={!runnable}
                       checked={selected.has(action.actionId)}
                       onChange={() => toggle(action.actionId)}
                     />
                     <button className="update-open" aria-expanded={isFocused} onClick={() => setFocusedId(action.actionId)}>
                       <i className="risk-mark" data-risk={action.risk} data-manual={action.command === null} data-tip={riskLabel(action.risk)} />
-                      <span className="row-title">{action.title}</span>
+                      <span className="row-title">{engineText(action.title)}</span>
                       {versionsOf(action)}
                     </button>
                     {isFocused && <div className="update-inline"><ActionDetail action={action} locked={locked} onHold={(until) => hold(action, until)} onOpenGuide={onOpenGuide} /></div>}
@@ -245,7 +246,7 @@ export function Updates(props: {
 
         {focused && (
           <aside className="pane inspector" aria-label={t("Selected update")}>
-            <h2 className="inspector-title">{focused.title}</h2>
+            <h2 className="inspector-title">{engineText(focused.title)}</h2>
             {versionsOf(focused)}
             <ActionDetail action={focused} locked={locked} onHold={(until) => hold(focused, until)} onOpenGuide={onOpenGuide} />
           </aside>
@@ -266,7 +267,7 @@ export function Updates(props: {
         <ul className="rows sheet-list">
           {chosen.map((action) => (
             <li className="row" key={action.actionId}>
-              <span className="row-title">{action.title}</span>
+              <span className="row-title">{engineText(action.title)}</span>
               {versionsOf(action) ?? <span />}
               <div className="confirm-note">
                 <p>{riskLabel(action.risk)}, {action.reversible ? t("can be undone") : t("cannot be undone")}</p>
