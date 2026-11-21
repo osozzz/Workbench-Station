@@ -1,4 +1,5 @@
 import { ArrowClockwise, BookOpenText, DownloadSimple } from "@phosphor-icons/react";
+import { engineText } from "../engine-text";
 import { type RunLog } from "../data";
 import { guideForFailure, type GuideId } from "../guides";
 import { formatDate, rich, t } from "../i18n";
@@ -11,7 +12,7 @@ function RestorePoint({ point, onOpenGuide }: { point: NonNullable<RunLog["resto
   if (point.result === "creating") return <p className="run-restore">{t("The restore point was still being made when this run stopped.")}</p>;
   return (
     <div className="run-restore">
-      <p>{point.reason ?? t("Windows could not create a restore point, so nothing was installed.")}</p>
+      <p>{engineText(point.reason) || t("Windows could not create a restore point, so nothing was installed.")}</p>
       <button className="link" onClick={() => onOpenGuide("restore-point")}>
         <BookOpenText size={16} aria-hidden="true" />
         {t("What to do")}
@@ -65,9 +66,9 @@ export function History(props: {
                 <ul className="rows">
                   {failed.map((action) => (
                     <li className="row" key={action.actionId}>
-                      <span className="row-title">{action.title}</span>
+                      <span className="row-title">{engineText(action.title)}</span>
                       <span className="result" data-result="failed">{t("Failed")}</span>
-                      {action.reason && <p>{action.reason}</p>}
+                      {action.reason && <p>{engineText(action.reason)}</p>}
                       <div className="row-actions">
                         <button className="link" onClick={() => onOpenGuide(guideForFailure(action.reason))}>
                           <BookOpenText size={16} aria-hidden="true" />

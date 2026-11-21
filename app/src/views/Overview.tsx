@@ -1,4 +1,5 @@
 import { ArrowRight, Check, FileArrowDown, Folder, FolderPlus, HardDrives, MagnifyingGlass, Prohibit, ShieldCheck, WarningCircle, X } from "@phosphor-icons/react";
+import { engineText } from "../engine-text";
 import { useState, type CSSProperties, type ReactNode } from "react";
 import { ageInHours, describeFailure, exportReport, inApp, sourceName, type Action, type ActionResult, type AppError, type LogAction, type RunLog, type Snapshot } from "../data";
 import { groupBySource, riskLabel, versionsOf } from "../actions";
@@ -34,7 +35,7 @@ function Strip({ actions, log }: { actions: Action[]; log: RunLog | null }) {
                   data-risk={action.risk}
                   data-manual={action.command === null}
                   data-state={tickState(entries.get(action.actionId))}
-                  aria-label={`${action.title}, ${riskLabel(action.risk)}`}
+                  aria-label={`${engineText(action.title)}, ${riskLabel(action.risk)}`}
                   onMouseEnter={() => setFocused(action)}
                   onFocus={() => setFocused(action)}
                 />
@@ -48,7 +49,7 @@ function Strip({ actions, log }: { actions: Action[]; log: RunLog | null }) {
       </div>
       <div className="strip-foot">
         <p className="tick-detail" aria-live="polite">
-          {focused ? focused.title : t("Each mark is one update. Hover over a mark to see which.")}
+          {focused ? engineText(focused.title) : t("Each mark is one update. Hover over a mark to see which.")}
         </p>
         <div className="legend">
           <span><i data-risk="low" />{riskLabel("low")}</span>
@@ -69,11 +70,11 @@ function RunRows({ log }: { log: RunLog }) {
       <ul className="rows">
         {log.actions.map((action) => (
           <li className="row" key={action.actionId}>
-            <span className="row-title">{action.title}</span>
+            <span className="row-title">{engineText(action.title)}</span>
             <span className="result" data-result={action.startedAt && !action.finishedAt ? "running" : action.result}>
               {action.startedAt && !action.finishedAt ? t("Installing") : t(resultLabels[action.result])}
             </span>
-            {action.reason && action.result !== "succeeded" && <p>{action.reason}</p>}
+            {action.reason && action.result !== "succeeded" && <p>{engineText(action.reason)}</p>}
           </li>
         ))}
       </ul>
@@ -121,7 +122,7 @@ export function Overview(props: { snapshot: Snapshot; run: Run | null; auditing:
                     : run.log?.restorePoint?.result === "creating"
                       ? t("Creating a restore point first. This can take a minute.")
                       : run.log
-                      ? `${current ? `${current.title}.` : t("Starting the next update.")} ${t("You can keep working; some apps may close while they update.")}`
+                      ? `${current ? `${engineText(current.title)}.` : t("Starting the next update.")} ${t("You can keep working; some apps may close while they update.")}`
                       : t("Waiting for Windows to give permission.")}
                 </p>
               </div>
@@ -188,7 +189,7 @@ export function Overview(props: { snapshot: Snapshot; run: Run | null; auditing:
             <ul className="rows">
               {manual.slice(0, 6).map((action) => (
                 <li className="row" key={action.actionId}>
-                  <span className="row-title">{action.title}</span>
+                  <span className="row-title">{engineText(action.title)}</span>
                   {versionsOf(action)}
                 </li>
               ))}
@@ -210,7 +211,7 @@ export function Overview(props: { snapshot: Snapshot; run: Run | null; auditing:
                 <ul className="rows">
                   {deviations.slice(0, 5).map((finding) => (
                     <li className="row" key={finding.policyKey}>
-                      <span className="row-note">{finding.message}</span>
+                      <span className="row-note">{engineText(finding.message)}</span>
                     </li>
                   ))}
                 </ul>

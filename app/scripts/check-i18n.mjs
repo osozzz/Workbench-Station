@@ -31,6 +31,29 @@ for (const file of files) {
   for (const match of text.matchAll(/\b(?:t|msg|tn)\(\s*`/g)) problems.push(`${file}: t() with a template literal at offset ${match.index}`);
 }
 
+// Engine sentences (src/engine-text.ts): both sides use the same placeholders, and the fixed words still appear in
+// the engine, so a reworded message fails here instead of quietly staying in English.
+const scripts = fileURLToPath(new URL("../../scripts/", import.meta.url));
+const engine = readdirSync(scripts, { recursive: true })
+  .filter((name) => /\.ps(m)?1$/.test(name))
+  .map((name) => readFileSync(join(scripts, name), "utf8"))
+  .join("\n");
+const engineWords = new Set(engine.match(/[A-Za-z_][\w.-]*/g));
+const templates = readFileSync(join(src, "engine-text.ts"), "utf8").matchAll(new RegExp(String.raw`^\s*\[${literal},\s*${literal}\],?\s*$`, "gm"));
+let engineCount = 0;
+for (const [, rawEnglish, rawSpanish] of templates) {
+  const english = unescape(rawEnglish);
+  const spanish = unescape(rawSpanish);
+  engineCount += 1;
+  if (placeholders(english.replaceAll("{*", "{")) !== placeholders(spanish)) problems.push(`engine-text.ts: placeholders differ in "${english}" -> "${spanish}"`);
+  // A piece is fine when the engine has it as written; one the engine builds from parts ("Pending $(...) update.")
+  // must at least keep each of its longer words.
+  for (const piece of english.split(/\{\*?\w+\}/).map((p) => p.trim()).filter((p) => p.length >= 8)) {
+    const missing = engine.includes(piece) ? [] : (piece.match(/[A-Za-z_][\w.-]*/g) ?? []).filter((w) => w.length >= 5 && !engineWords.has(w.replace(/\.$/, "")));
+    if (missing.length > 0) problems.push(`engine-text.ts: "${english}" no longer matches the engine (${missing.join(", ")})`);
+  }
+}
+
 for (const key of [...Object.keys(es), ...Object.keys(esPlurals)]) {
   if (!used.has(key)) console.warn(`i18n: unused Spanish text "${key}"`);
 }
@@ -38,4 +61,4 @@ if (problems.length > 0) {
   console.error(problems.join("\n"));
   process.exit(1);
 }
-console.log(`i18n: ${used.size} texts, all translated.`);
+console.log(`i18n: ${used.size} texts, all translated; ${engineCount} engine sentences match the engine.`);
