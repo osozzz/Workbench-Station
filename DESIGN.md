@@ -11,6 +11,12 @@ colors:
   risk-medium: "#e8c15a"
   risk-high: "#f0746a"
   manual: "#7f9f93"
+  map-1: "oklch(66% 0.11 250)"
+  map-2: "oklch(63% 0.12 287)"
+  map-3: "oklch(70% 0.09 218)"
+  map-4: "oklch(64% 0.11 322)"
+  map-5: "oklch(63% 0.08 196)"
+  map-6: "oklch(67% 0.07 266)"
   glass-solid: "#142c27"
   substrate-light: "#d9e6df"
   silk-light: "#10302a"
@@ -142,6 +148,10 @@ Two families: the board and its silkscreen (neutrals), and copper with the risk 
 
 - **Low** (`risk-low`), **Medium** (`risk-medium`), **High** (`risk-high`): used for the risk mark, the ticks in the update strip and run results.
 - **Needs you** (`manual`): manual updates, always drawn as an outline, never filled.
+
+### Map tints
+
+- **Soldermask tints** (`map-1` to `map-6`: blue, violet, cyan, orchid, petrol, periwinkle): only in the Space map, one per folder in size order, shared by its tile, the folders previewed inside it and its bar in the list. They are the colors a board's soldermask comes in: cool and muted (OKLCH chroma 0.07 to 0.13), away from copper and the risk hues, so a folder never reads as an action or a risk. Loose files and system space stay neutral (solder-pad dots and the manual outline).
 
 ### Named Rules
 **The One Copper Rule.** Copper is the only accent. It marks the primary action, focus and counters, never decoration. A view never shows two copper buttons.

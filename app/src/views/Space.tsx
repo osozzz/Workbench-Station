@@ -35,6 +35,29 @@ interface Placed extends Tile {
   h: number;
 }
 
+/** A folder and, while it holds only one folder and almost nothing else, that folder too. */
+function chainOf(node: SpaceNode): SpaceNode[] {
+  const chain = [node];
+  let last = node;
+  while (last.children.length === 1 && last.children[0].bytes >= last.bytes * 0.9) {
+    last = last.children[0];
+    chain.push(last);
+  }
+  return chain;
+}
+
+/** A placed tile as CSS percentages of the area it was laid out in. */
+const box = (tile: Placed, width: number, height: number) => ({
+  left: `${(tile.x / width) * 100}%`,
+  top: `${(tile.y / height) * 100}%`,
+  width: `${(tile.w / width) * 100}%`,
+  height: `${(tile.h / height) * 100}%`,
+});
+
+/** A share of the shown total, like 54% or 0.8%. */
+const formatShare = (share: number) =>
+  new Intl.NumberFormat(language(), { style: "percent", maximumFractionDigits: share < 0.1 ? 1 : 0 }).format(share);
+
 /** Squarified treemap: fills rows along the short side while that keeps the tiles closest to squares. */
 function squarify(tiles: Tile[], width: number, height: number): Placed[] {
   const placed: Placed[] = [];
@@ -140,8 +163,13 @@ export function Space({ onError }: { onError(error: AppError | null): void }) {
   const current = trail.at(-1) ?? scan?.tree ?? null;
   const tiles = useMemo(() => (current ? tilesOf(current, trail.length === 0 ? whole : 0) : []), [current, trail.length, whole]);
   const placed = useMemo(() => squarify(tiles, 200, 100), [tiles]);
+  const tintOf = useMemo(() => {
+    const folders = tiles.filter((tile) => tile.kind === "folder").map((tile) => tile.key);
+    return (key: string) => (folders.includes(key) ? `var(--map-${(folders.indexOf(key) % 6) + 1})` : undefined);
+  }, [tiles]);
   const shownTotal = tiles.reduce((sum, tile) => sum + tile.bytes, 0);
-  const open = (node: SpaceNode) => setTrail([...trail, node]);
+  // Opening a folder skips the levels that hold a single folder and almost nothing else, like Users > you.
+  const open = (node: SpaceNode) => setTrail([...trail, ...chainOf(node)]);
   const files = allFiles ? (scan?.largest ?? []) : (scan?.largest ?? []).slice(0, 15);
 
   return (
@@ -222,23 +250,43 @@ export function Space({ onError }: { onError(error: AppError | null): void }) {
             </nav>
 
             <div className="treemap">
-              {placed.map((tile, index) => {
-                const label = `${tile.label}, ${formatBytes(tile.bytes)}`;
-                const style = { left: `${tile.x / 2}%`, top: `${tile.y}%`, width: `${tile.w / 2}%`, height: `${tile.h}%`, "--shade": `${Math.max(6, 22 - index * 2)}%` } as CSSProperties;
-                const roomy = tile.w > 14 && tile.h > 12;
-                const content = roomy && (
-                  <>
+              {placed.map((tile) => {
+                const share = shownTotal > 0 ? tile.bytes / shownTotal : 0;
+                const percent = formatShare(share);
+                const label = `${tile.label}, ${formatBytes(tile.bytes)}, ${percent}`;
+                // Bigger pieces sit a little lighter, so the eye finds the heavy ones first.
+                const style = { ...box(tile, 200, 100), "--tint": tintOf(tile.key), "--shade": `${Math.round(34 + 30 * Math.sqrt(share))}%` } as CSSProperties;
+                // Names need room: a tile shows its name and size, only its name, or nothing (the list below has them all).
+                const fits = tile.w > 13 && tile.h > 11 ? "full" : tile.w > 8 && tile.h > 7 ? "name" : "none";
+                const head = fits !== "none" && (
+                  <span className="tile-head">
                     <span className="tile-name">{tile.label}</span>
-                    <span className="tile-size">{formatBytes(tile.bytes)}</span>
-                  </>
+                    {fits === "full" && (
+                      <span className="tile-size">
+                        {formatBytes(tile.bytes)} · {percent}
+                      </span>
+                    )}
+                  </span>
+                );
+                // A big folder previews its own folders one level down, so a large block still says what it holds.
+                const inner = fits === "full" && tile.node && tile.h > 24 && tile.w > 22 ? squarify(tilesOf(chainOf(tile.node).at(-1)!, 0), tile.w, tile.h - 9) : [];
+                const body = inner.length > 1 && (
+                  <span className="tile-inner" aria-hidden="true">
+                    {inner.map((child) => (
+                      <i key={child.key} className="tile-cell" data-kind={child.kind} style={box(child, tile.w, tile.h - 9)}>
+                        {child.w > 15 && child.h > 8 && <span className="tile-cell-name">{child.label}</span>}
+                      </i>
+                    ))}
+                  </span>
                 );
                 return tile.node ? (
                   <button key={tile.key} className="tile" data-kind={tile.kind} style={style} title={label} aria-label={label} onClick={() => open(tile.node!)}>
-                    {content}
+                    {head}
+                    {body}
                   </button>
                 ) : (
                   <div key={tile.key} className="tile" data-kind={tile.kind} style={style} title={label} role="img" aria-label={label}>
-                    {content}
+                    {head}
                   </div>
                 );
               })}
@@ -256,7 +304,7 @@ export function Space({ onError }: { onError(error: AppError | null): void }) {
                   )}
                   <span className="row-note space-size">{formatBytes(tile.bytes)}</span>
                   <span className="space-bar" aria-hidden="true">
-                    <i style={{ width: `${shownTotal > 0 ? (tile.bytes / shownTotal) * 100 : 0}%` }} data-kind={tile.kind} />
+                    <i style={{ width: `${shownTotal > 0 ? (tile.bytes / shownTotal) * 100 : 0}%`, "--tint": tintOf(tile.key) } as CSSProperties} data-kind={tile.kind} />
                   </span>
                 </li>
               ))}
