@@ -4,6 +4,14 @@ All notable changes to this workstation toolkit are documented here.
 
 ## Unreleased
 
+## 3.0.1 — 2026-11-21
+
+A small release that checks the app updates itself: an installed 3.0.0 finds it, downloads it in the background and installs it when you choose **Restart to update**. Your settings, holds and reports stay as they are.
+
+### Fixed
+
+- The 3.0.0 notes said each update's title and message stay in English. Since #276, they appear in Spanish when the app is in Spanish.
+
 ## 3.0.0 — 2026-11-21
 
 Workbench Station is now a desktop app for Windows, in English and Spanish. It audits the PC, shows every update with its risk and exact command, and installs only what you confirm, with no terminal. It also shows what fills your drives and frees space one confirmed item at a time. The PowerShell engine keeps every v2 guarantee and still runs on its own.
@@ -25,7 +33,7 @@ Workbench Station is now a desktop app for Windows, in English and Spanish. It a
 - Compare in the desktop app: a new **Compare** view exports this PC's audit (a JSON report, with a note on what it contains) and compares it with an audit exported on another PC through `Compare-Workstations.ps1`. Differences are grouped by category and described in words, such as "Only on this PC", the two values, or the fields that changed. The last comparison shows again when you come back.
 - Updates for the desktop app: once a day (or from **Settings > Check for updates**) it looks for a new version on GitHub Releases. The new version downloads in the background and installs when you choose **Restart to update**, never during an install or an audit. Updates are signed and verified against the app's public key.
 - `.github/workflows/release.yml`: a `v*` tag builds the signed installer and creates a draft release. It checks that the tag matches the app version, pins its actions by SHA and the Rust toolchain by `rust-toolchain.toml`, and uses minimal permissions. The draft carries the installer, its `.sig`, `latest.json`, `SHA256SUMS.txt`, the CHANGELOG section as notes, and a build provenance attestation.
-- The desktop app in Spanish and English. It follows Windows' language, and **Settings > Language** can pick one. Views, buttons, tooltips, confirmations, errors, notifications, the tray icon and the guides are translated. Dates and relative times follow the language. Each update's title and message still come from the engine in English (#276). `pnpm build` runs `scripts/check-i18n.mjs`, which fails when a text has no Spanish or a translation changes a placeholder.
+- The desktop app in Spanish and English. It follows Windows' language, and **Settings > Language** can pick one. Views, buttons, tooltips, confirmations, errors, notifications, the tray icon and the guides are translated. Dates and relative times follow the language. `pnpm build` runs `scripts/check-i18n.mjs`, which fails when a text has no Spanish or a translation changes a placeholder.
 - Privacy: `PRIVACY.md` lists what stays on this PC and what goes online. **Settings > Check for updates automatically** turns off the daily update check, and the installer shows a privacy summary in English and Spanish before the license. The README has a code signing policy.
 - `workbench-space.exe`, a read-only disk space scanner shipped with the app and usable from the command line. The normal mode walks folders in parallel without administrator rights and doesn't follow links or junctions; `--mft` reads an NTFS drive's master file table in one pass, like WizTree (about 36 seconds instead of 5 and a half minutes for a 450 GB drive), and needs administrator rights. It writes JSON with the folder tree, the 500 largest files and the size per file type.
 - **Space** in the desktop app: pick a drive or folder and see a treemap you can open folder by folder, the folders by size, the largest files and the size per file type. Fast mode (a whole NTFS drive; Windows asks for administrator permission each time) now counts what each file takes on disk, including named streams and folder indexes, so its total matches the drive's used space, and the rest shows as "System and reserved space". Results stay in `reports/space/`, out of the exported audit and the comparison.
