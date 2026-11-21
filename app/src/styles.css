@@ -13,6 +13,13 @@
   --medium: #e8c15a;
   --high: #f0746a;
   --manual: #7f9f93;
+  /* Space map only: the soldermask colors a board can come in. Never a signal. */
+  --map-1: oklch(66% 0.11 250);
+  --map-2: oklch(63% 0.12 287);
+  --map-3: oklch(70% 0.09 218);
+  --map-4: oklch(64% 0.11 322);
+  --map-5: oklch(63% 0.08 196);
+  --map-6: oklch(67% 0.07 266);
 
   /* Glass: fill, the tray that holds marks, its rim, and how it sits above the board. */
   --glass: rgb(205 236 222 / 0.075);
@@ -56,6 +63,12 @@
     --medium: #8f6600;
     --high: #bd3627;
     --manual: #7e988d;
+    --map-1: oklch(60% 0.12 250);
+    --map-2: oklch(56% 0.13 287);
+    --map-3: oklch(64% 0.10 218);
+    --map-4: oklch(58% 0.12 322);
+    --map-5: oklch(57% 0.09 196);
+    --map-6: oklch(61% 0.08 266);
 
     --glass: rgb(255 255 255 / 0.5);
     --glass-float: rgb(255 255 255 / 0.5);
@@ -2046,10 +2059,13 @@ code {
   font-weight: 500;
 }
 
+/* The map: each piece is a pane of glass on the board, its name and share on top, and a big folder shows its own
+   folders one level down. Loose files carry solder-pad dots; what no file explains is outlined like a manual update. */
 .treemap {
   position: relative;
   aspect-ratio: 2 / 1;
   overflow: hidden;
+  padding: 3px;
   border-radius: var(--r-tray);
   background: var(--tray);
 }
@@ -2058,38 +2074,48 @@ code {
   position: absolute;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  gap: 2px;
   min-width: 0;
-  padding: 8px 10px;
+  padding: 10px 12px 12px;
   overflow: hidden;
-  border: 0;
-  border-radius: var(--r-mark);
-  outline-offset: -2px;
-  box-shadow: inset 0 0 0 1px var(--hairline);
-  background: color-mix(in srgb, var(--silk) var(--shade), transparent);
+  /* The transparent border is the gap between pieces, so the board shows through. */
+  border: 3px solid transparent;
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.1), transparent 46%) padding-box,
+    color-mix(in oklch, var(--tint, var(--silk)) var(--shade), transparent) padding-box;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), inset 0 0 0 1px color-mix(in oklch, var(--tint, var(--silk)) 45%, transparent);
   color: var(--silk);
   font: inherit;
   text-align: start;
+  outline-offset: -4px;
 }
 
 button.tile {
   cursor: pointer;
-  transition: background-color 140ms ease-out;
+  transition: box-shadow 160ms var(--settle);
 }
 
+/* Hover lifts the piece: a brighter rim and a faint wash of light over it. */
 button.tile:hover {
-  background: color-mix(in srgb, var(--silk) calc(var(--shade) + 8%), transparent);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3), inset 0 0 0 1px color-mix(in oklch, var(--tint, var(--silk)) 80%, white), inset 0 0 0 999px rgb(255 255 255 / 0.06);
 }
 
 .tile[data-kind="files"],
 .tile[data-kind="other"] {
-  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--silk) 10%, transparent) 0 6px, transparent 6px 12px);
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--silk) 20%, transparent) 1.1px, transparent 1.6px) 0 0 / 9px 9px padding-box,
+    color-mix(in srgb, var(--silk) 5%, transparent) padding-box;
 }
 
 .tile[data-kind="system"] {
-  background: none;
-  box-shadow: inset 0 0 0 1.5px var(--manual);
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--manual) 14%, transparent) 0 1px, transparent 1px 7px) padding-box;
+  box-shadow: inset 0 0 0 1px var(--manual);
+}
+
+.tile-head {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
 }
 
 .tile-name,
@@ -2101,14 +2127,53 @@ button.tile:hover {
 
 .tile-name {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: -0.005em;
 }
 
 .tile-size {
   color: var(--silk-soft);
-  font-size: 13px;
+  font-size: 12.5px;
   font-variant-numeric: tabular-nums;
 }
+
+/* One level down, drawn without labels: the shape of what the folder holds. */
+.tile-inner {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  margin: 10px -4px -4px;
+}
+
+.tile-cell {
+  position: absolute;
+  border: 2px solid transparent;
+  border-radius: 7px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.07), transparent 50%) padding-box,
+    color-mix(in oklch, var(--tint, var(--silk)) 34%, transparent) padding-box;
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--tint, var(--silk)) 40%, transparent);
+}
+
+.tile-cell[data-kind="files"],
+.tile-cell[data-kind="other"] {
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--silk) 16%, transparent) 1px, transparent 1.5px) 0 0 / 8px 8px padding-box,
+    color-mix(in srgb, var(--silk) 3%, transparent) padding-box;
+}
+
+.tile-cell-name {
+  position: absolute;
+  inset: 7px 9px auto;
+  overflow: hidden;
+  color: color-mix(in oklch, var(--silk) 82%, transparent);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 
 .space-rows .row {
   grid-template-columns: minmax(0, 1fr) auto;
@@ -2130,7 +2195,7 @@ button.tile:hover {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--silk-soft);
+  background: var(--tint, var(--silk-soft));
 }
 
 .space-bar i[data-kind="system"] {
