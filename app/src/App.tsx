@@ -1,4 +1,5 @@
 import { ArrowCircleUp, CaretRight, WarningCircle } from "@phosphor-icons/react";
+import { engineText } from "./engine-text";
 import { useEffect, useRef, useState } from "react";
 import { Command } from "./actions";
 import type { GuideId } from "./guides";
@@ -167,7 +168,7 @@ export function App() {
         void tellWhenAway(log);
       } else {
         const reason = entries.find((a) => a.reason)?.reason;
-        setError({ message: t("Nothing was installed. {reason}", { reason: reason ?? t("Audit this PC and try again.") }) });
+        setError({ message: t("Nothing was installed. {reason}", { reason: reason ? engineText(reason) : t("Audit this PC and try again.") }) });
       }
     } catch (reason) {
       setError(describeFailure(reason));
