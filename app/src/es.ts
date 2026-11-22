@@ -296,7 +296,7 @@ export const es: Record<string, string> = {
   "Every Monday at noon, or as soon as this PC is on after that.": "Todos los lunes al mediodía, o en cuanto este equipo se encienda después.",
   "Same as Windows": "Igual que Windows",
   Language: "Idioma",
-  "The names and messages of each update come from the audit and stay in English.": "Los nombres y mensajes de cada actualización vienen de la auditoría y siguen en inglés.",
+  "Reports and exported files stay in English, so other tools read them the same.": "Los informes y los archivos exportados quedan en inglés, para que otras herramientas los lean igual.",
   Window: "Ventana",
   "Keep running in the notification area when closed": "Seguir en el área de notificación al cerrar",
   "Closing the window only hides it. Open it again from the icon near the clock, and choose Quit there to close the app.":

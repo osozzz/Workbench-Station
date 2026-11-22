@@ -4,6 +4,10 @@ All notable changes to this workstation toolkit are documented here.
 
 ## Unreleased
 
+### Fixed
+
+- **Settings > Language** no longer says update titles and messages stay in English; it says the reports and exported files do (#300).
+
 ## 3.0.1 — 2026-11-21
 
 A small release that checks the app updates itself: an installed 3.0.0 finds it, downloads it in the background and installs it when you choose **Restart to update**. Your settings, holds and reports stay as they are.
