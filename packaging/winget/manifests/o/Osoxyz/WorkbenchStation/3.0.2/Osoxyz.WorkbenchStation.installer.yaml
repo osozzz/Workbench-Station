@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.28.0.schema.json
+
+PackageIdentifier: Osoxyz.WorkbenchStation
+PackageVersion: 3.0.2
+InstallerType: nullsoft
+Scope: user
+InstallModes:
+- interactive
+- silent
+- silentWithProgress
+UpgradeBehavior: install
+ReleaseDate: 2026-11-22
+ProductCode: Workbench Station
+AppsAndFeaturesEntries:
+- DisplayName: Workbench Station
+  Publisher: Alejandro Osorno
+  ProductCode: Workbench Station
+InstallationMetadata:
+  DefaultInstallLocation: '%LocalAppData%\Workbench Station'
+Installers:
+- Architecture: x64
+  InstallerUrl: https://github.com/osozzz/Workbench-Station/releases/download/v3.0.2/Workbench-Station_3.0.2_x64-setup.exe
+  InstallerSha256: 02A9B7ED1525D22F93FFE084B65360F96227BEDD41E02B40099C0A8AEFF79150
+ManifestType: installer
+ManifestVersion: 1.28.0
