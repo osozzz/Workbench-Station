@@ -4,6 +4,8 @@ All notable changes to this workstation toolkit are documented here.
 
 ## Unreleased
 
+## 3.0.2 — 2026-11-22
+
 ### Fixed
 
 - **Settings > Language** no longer says update titles and messages stay in English; it says the reports and exported files do (#300).
