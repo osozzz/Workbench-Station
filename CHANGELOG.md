@@ -4,6 +4,10 @@ All notable changes to this workstation toolkit are documented here.
 
 ## Unreleased
 
+### Added
+
+- `packaging/winget/`: the winget manifests for `Osoxyz.WorkbenchStation` 3.0.2, ready to submit, with how to validate and update them (#304).
+
 ## 3.0.2 — 2026-11-22
 
 ### Fixed

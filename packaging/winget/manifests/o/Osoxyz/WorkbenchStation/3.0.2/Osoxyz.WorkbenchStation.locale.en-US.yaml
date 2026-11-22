@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.28.0.schema.json
+
+PackageIdentifier: Osoxyz.WorkbenchStation
+PackageVersion: 3.0.2
+PackageLocale: en-US
+Publisher: Alejandro Osorno
+PublisherUrl: https://github.com/osozzz
+PublisherSupportUrl: https://github.com/osozzz/Workbench-Station/issues
+PrivacyUrl: https://github.com/osozzz/Workbench-Station/blob/main/PRIVACY.md
+Author: Alejandro Osorno
+PackageName: Workbench Station
+PackageUrl: https://github.com/osozzz/Workbench-Station
+License: MIT
+LicenseUrl: https://github.com/osozzz/Workbench-Station/blob/main/LICENSE
+Copyright: Copyright (c) 2026 Alejandro Osorno
+ShortDescription: Keeps a Windows development PC up to date, showing the risk and exact command of every update.
+Description: |-
+  Workbench Station audits a Windows development PC, finds what can be updated (WinGet, Chocolatey, npm and pnpm, developer tools, editors, Windows Update and your own standard), shows the risk and exact command of each update, and installs only what you confirm. It also shows what fills your drives and frees space one confirmed item at a time. Reports stay on the PC. Available in English and Spanish.
+Tags:
+- developer-tools
+- disk-space
+- maintenance
+- package-manager
+- updates
+- winget
+ReleaseNotesUrl: https://github.com/osozzz/Workbench-Station/releases/tag/v3.0.2
+ManifestType: defaultLocale
+ManifestVersion: 1.28.0
